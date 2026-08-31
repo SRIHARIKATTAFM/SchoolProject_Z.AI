@@ -126,3 +126,22 @@ Work Log:
 
 Stage Summary:
 - "studentId and schoolId are required" error eliminated. Both photo upload and ID card issue/reissue flows work cleanly. Lint clean.
+
+---
+Task ID: 15
+Agent: main (orchestrator)
+Task: Complete HM dashboard, dark theme, mobile responsive, section change, role management, HM handover, expand mock data.
+
+Work Log:
+- Schema: added StaffOnboarding + HMHandover models (with fromHM relation). Pushed to DB.
+- Seed expanded: 45 students across VI–X with sections A/B/C (VI=A only, VII/VIII=A+B, IX=A+B+C, X=A+B). Each student gets SID-{classNum}-{section}-{nn} sorted A–Z within section. 45 SIDs generated.
+- Dark professional portal theme: portal layout applies `dark` class → metallic gray palette (charcoal background oklch(0.18), white text oklch(0.97), green accent). VLM-verified: "sleek dark mode, high contrast, highly readable".
+- Mobile responsiveness: PortalScaffold changed to `flex-col lg:flex-row` (stacks on mobile); all table CardContents get `overflow-x-auto scroll-thin`; IssuanceDesk card preview uses fixed-width scaled containers (176×279px) instead of `scale-[0.6]` to prevent layout overflow. Verified: 390px viewport, scrollWidth=390 (no horizontal overflow).
+- Section change feature: API `POST /api/portal/students/[id]/section` (HM/ID_OPERATOR/TEACHER can change A↔B↔C). SectionChangeButton component with dialog. Verified: changed Arjun Reddy from A to B (VI) — audit logged.
+- HM dashboard completed: attendance section now shows real stats (total/present/absent) + class-wise breakdown table (VI–X with rates). All nav items have distinct labels (Roles & Onboarding, HM Handover).
+- Role management: StaffManager component — onboard staff dialog (name/email/designation/subject/phone/role/password), staff cards with remove button (deactivates login). API `POST /api/portal/staff/onboard` (creates Staff+User immediately) + `POST /api/portal/staff/[id]` (remove). Verified: onboarded "Test Teacher" as School Assistant (TEACHER) — audit logged.
+- HM handover workflow: HMHandoverPanel — HM selects a staff member to authorize (POST /api/portal/handover). Authorized user sees "Onboard New Headmaster" panel (POST /api/portal/handover/onboard-hm). Onboarding a new HM consumes the authorization (status ACTIVE→CONSUMED), auto-disabling the option. Verified: HM authorized "Test Teacher" → handover ACTIVE in DB. Non-HM staff cannot create HM accounts without active handover.
+- Fixed parse errors (Turbopack cache), Prisma relation errors (fromHM field).
+
+Stage Summary:
+- Lint clean. 45 students with sections A/B/C. Dark metallic-gray professional dashboard with white text. All portal pages mobile responsive (390px verified, no overflow). ID card dialogs render correctly on mobile + desktop. Section change works (A→B verified). Role onboarding works (Test Teacher created). HM handover authorization works (ACTIVE in DB). All HM dashboard sections show real data.

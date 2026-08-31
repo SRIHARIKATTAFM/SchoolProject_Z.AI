@@ -41,6 +41,8 @@ model School {
   achievements  Achievement[]
   sscPapers     SSCPaper[]
   users         User[]
+  onboardings   StaffOnboarding[]
+  handover      HMHandover?
 }
 
 // ─── Identity & auth ───────────────────────────────────────────────────
@@ -63,6 +65,48 @@ model User {
   idRequests   IDCardRequest[] @relation("IDRequester")
   idApprovals  IDCardRequest[] @relation("IDApprover")
   schemeOps    SchemeApplication[] @relation("SchemeOperator")
+  onboardedStaff StaffOnboarding[] @relation("Onboarder")
+  handoverAuthorizations HMHandover[] @relation("HandoverAuthorizer")
+  handoversFrom HMHandover[] @relation("HandoverFromHM")
+}
+
+// ─── Staff onboarding (role creation by HM/admin) ─────────────────────
+model StaffOnboarding {
+  id            String   @id @default(cuid())
+  schoolId      String
+  school        School   @relation(fields: [schoolId], references: [id])
+  name          String
+  email         String   @unique
+  designation   String   // Headmaster | School Assistant | SGT | PET | LHS | Pandit
+  subject       String?
+  phone         String?
+  qualification String?
+  role          String   // HM | TEACHER | SCHEME_OPERATOR | ID_OPERATOR
+  status        String   // PENDING | COMPLETED | REJECTED
+  password      String   // hashed
+  onboardedById String
+  onboardedBy   User     @relation("Onboarder", fields: [onboardedById], references: [id])
+  staffId       String?  // created Staff record id once completed
+  invitedAt     DateTime @default(now())
+  completedAt   DateTime?
+}
+
+// ─── Headmaster handover authorization ────────────────────────────────
+// The leaving HM designates who may onboard the next HM.
+// Once a new HM is onboarded, the authorization is consumed (status=CONSUMED)
+// and the option auto-disables.
+model HMHandover {
+  id              String   @id @default(cuid())
+  schoolId        String   @unique
+  school          School   @relation(fields: [schoolId], references: [id])
+  authorizedUserId String  // who is authorized to onboard the next HM
+  authorizedUser  User     @relation("HandoverAuthorizer", fields: [authorizedUserId], references: [id])
+  fromHMId        String   // the leaving HM's user id
+  fromHM          User     @relation("HandoverFromHM", fields: [fromHMId], references: [id])
+  status          String   // ACTIVE | CONSUMED | CANCELLED
+  note            String?
+  createdAt       DateTime @default(now())
+  consumedAt      DateTime?
 }
 
 // ─── Staff ─────────────────────────────────────────────────────────────

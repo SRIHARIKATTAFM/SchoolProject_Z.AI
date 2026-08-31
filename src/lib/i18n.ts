@@ -80,6 +80,8 @@ export const t: Dict = {
   "portal.dashboard": { en: "Dashboard", te: "డాష్‌బోర్డ్" },
   "portal.students": { en: "Students", te: "విద్యార్థులు" },
   "portal.staff": { en: "Staff", te: "ఉపాధ్యాయులు" },
+  "portal.roles": { en: "Roles & Onboarding", te: "పాత్రలు & ఆన్‌బోర్డింగ్" },
+  "portal.handover": { en: "HM Handover", te: "HM హ్యాండోవర్" },
   "portal.attendance": { en: "Attendance", te: "హాజరు" },
   "portal.academics": { en: "Academics", te: "విద్యావిధానం" },
   "portal.exams": { en: "Exams", te: "పరీక్షలు" },

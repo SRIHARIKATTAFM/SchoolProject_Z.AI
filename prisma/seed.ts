@@ -40,6 +40,8 @@ async function main() {
   console.log("🌱 Seeding ZPHS Kunaparajuparva…");
 
   // wipe (order matters for FKs)
+  await db.hMHandover.deleteMany();
+  await db.staffOnboarding.deleteMany();
   await db.vaultAccessLog.deleteMany();
   await db.restrictedVault.deleteMany();
   await db.schemeApplication.deleteMany();
@@ -128,48 +130,61 @@ async function main() {
     staffRecords.push(st);
   }
 
-  // ─── Students (VI-X, ~6 per class = 30) ────────────────────────────
+  // ─── Students (VI-X, sections A/B/C, ~25 students) ─────────────────
   const studentFirst = ["Arjun", "Bhavya", "Charan", "Divya", "Eshwar", "Fathima", "Ganesh", "Harika", "Karthik", "Lalitha", "Mahesh", "Navya", "Pavan", "Queeny", "Ramesh", "Sowmya", "Tarun", "Usha", "Vamsi", "Yamini", "Akash", "Bhargavi", "Chaitanya", "Deepak", "Gayatri", "Hemanth", "Indira", "Jaya", "Kiran", "Lakshmi"];
   const lastNames = ["Reddy", "Rao", "Naidu", "Chowdary", "Kumar", "Devi", "Prasad", "Lakshmi", "Sri", "Babu"];
   const fatherFirst = ["Sri. Suresh", "Sri. Mohan", "Sri. Ramesh", "Sri. Pradeep", "Sri. Naresh", "Sri. Venkat", "Sri. Gopi", "Sri. Anil", "Sri. Srinu", "Sri. Subbarao"];
 
+  // Class → sections available. Upper classes (IX, X) have A + B; VI–VIII have A only (smaller school).
+  const CLASS_SECTIONS: Record<string, string[]> = {
+    VI: ["A"],
+    VII: ["A", "B"],
+    VIII: ["A", "B"],
+    IX: ["A", "B", "C"],
+    X: ["A", "B"],
+  };
+
   const students = [];
   let admissionCounter = 1001;
-  const today = new Date();
-  for (let c = 0; c < CLASSES.length; c++) {
-    const cls = CLASSES[c];
-    for (let n = 0; n < 6; n++) {
-      const idx = c * 6 + n;
-      const name = `${studentFirst[idx % studentFirst.length]} ${lastNames[n % lastNames.length]}`;
-      const gender = idx % 2 === 0 ? "M" : "F";
-      const ageOffset = 11 + c; // VI~11, X~15
-      const st = await db.student.create({
-        data: {
-          schoolId: school.id,
-          admissionNo: `KNP/${2025}/${pad(admissionCounter++, 4)}`,
-          name,
-          nameTe: null,
-          fatherName: `${fatherFirst[n % fatherFirst.length]} ${lastNames[n % lastNames.length]}`,
-          motherName: `Smt. ${studentFirst[(idx + 5) % studentFirst.length]} ${lastNames[n % lastNames.length]}`,
-          gender,
-          dob: date(2024 - ageOffset, (n % 12) + 1, (n % 27) + 1),
-          category: pick(["OC", "BC-A", "BC-D", "SC", "ST"], idx),
-          medium: "TM",
-          rollNo: String(n + 1),
-          status: "ACTIVE",
-          bloodGroup: pick(["A+", "B+", "O+", "AB+", "A-", "O-"], idx),
-          emergencyContact: `9${700000000 + Math.floor(Math.random() * 99999999)}`,
-          enrolments: {
-            create: {
-              academicYear: "2025-26",
-              className: cls,
-              section: "A",
-              status: "ENROLLED",
+  let nameIdx = 0;
+  for (const cls of CLASSES) {
+    const sections = CLASS_SECTIONS[cls] ?? ["A"];
+    for (const sec of sections) {
+      // 4–6 students per section
+      const perSection = sec === "A" ? 5 : 4;
+      for (let n = 0; n < perSection; n++) {
+        const idx = nameIdx++;
+        const name = `${studentFirst[idx % studentFirst.length]} ${lastNames[idx % lastNames.length]}`;
+        const gender = idx % 2 === 0 ? "M" : "F";
+        const ageOffset = 11 + CLASSES.indexOf(cls); // VI~11, X~15
+        const st = await db.student.create({
+          data: {
+            schoolId: school.id,
+            admissionNo: `KNP/${2025}/${pad(admissionCounter++, 4)}`,
+            name,
+            nameTe: null,
+            fatherName: `${fatherFirst[idx % fatherFirst.length]} ${lastNames[idx % lastNames.length]}`,
+            motherName: `Smt. ${studentFirst[(idx + 5) % studentFirst.length]} ${lastNames[idx % lastNames.length]}`,
+            gender,
+            dob: date(2024 - ageOffset, (idx % 12) + 1, (idx % 27) + 1),
+            category: pick(["OC", "BC-A", "BC-D", "SC", "ST"], idx),
+            medium: "TM",
+            rollNo: String(n + 1),
+            status: "ACTIVE",
+            bloodGroup: pick(["A+", "B+", "O+", "AB+", "A-", "O-"], idx),
+            emergencyContact: `9${700000000 + Math.floor(Math.random() * 99999999)}`,
+            enrolments: {
+              create: {
+                academicYear: "2025-26",
+                className: cls,
+                section: sec,
+                status: "ENROLLED",
+              },
             },
           },
-        },
-      });
-      students.push({ ...st, class: cls, section: "A" });
+        });
+        students.push({ ...st, class: cls, section: sec });
+      }
     }
   }
 

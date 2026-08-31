@@ -23,7 +23,7 @@ export default async function PortalLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/20">
+    <div className="dark flex min-h-screen flex-col bg-background text-foreground">
       <PortalTopbar name={session.user.name ?? ""} role={role} schoolName={schoolName} />
       <main className="flex-1">{children}</main>
       <footer className="mt-auto border-t border-border bg-background px-4 py-3 text-center text-xs text-muted-foreground">

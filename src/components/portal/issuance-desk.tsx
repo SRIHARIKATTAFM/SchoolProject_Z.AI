@@ -430,11 +430,15 @@ export function IssuanceDesk({
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-4">
-                    <div className="origin-top-left scale-[0.6]">
-                      <IDCardFront d={cardData} />
+                    <div className="origin-top-left scale-[0.55] sm:scale-[0.6]" style={{ width: 176, height: 279 }}>
+                      <div className="origin-top-left">
+                        <IDCardFront d={cardData} />
+                      </div>
                     </div>
-                    <div className="origin-top-left scale-[0.6]">
-                      <IDCardBack d={cardData} />
+                    <div className="origin-top-left scale-[0.55] sm:scale-[0.6]" style={{ width: 176, height: 279 }}>
+                      <div className="origin-top-left">
+                        <IDCardBack d={cardData} />
+                      </div>
                     </div>
                   </div>
                 </CardContent>

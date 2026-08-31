@@ -27,7 +27,7 @@ export function PortalScaffold({
   const [active, setActive] = useState(nav[0]?.id ?? "");
 
   return (
-    <div className="mx-auto flex max-w-[1400px] gap-0">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-0 lg:flex-row">
       {/* Sidebar (desktop) */}
       <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-60 shrink-0 border-r border-border bg-background lg:block">
         <ScrollArea className="h-full">

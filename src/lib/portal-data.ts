@@ -2,13 +2,13 @@ import { db } from "@/lib/db";
 
 // ─── HM / Admin ────────────────────────────────────────────────────────
 export async function getHmData(schoolId: string) {
-  const [students, staff, idRequests, schemes, notices, auditLogs, attendanceToday, exams, school] = await Promise.all([
+  const [students, staff, idRequests, schemes, notices, auditLogs, attendanceToday, exams, school, handover, onboardings] = await Promise.all([
     db.student.findMany({
       where: { schoolId, status: "ACTIVE" },
       include: { enrolments: { orderBy: { academicYear: "desc" }, take: 1 } },
       orderBy: { admissionNo: "asc" },
     }),
-    db.staff.findMany({ where: { schoolId }, include: { assignments: true }, orderBy: { designation: "asc" } }),
+    db.staff.findMany({ where: { schoolId }, include: { assignments: true, user: { select: { id: true, email: true, role: true, active: true } } }, orderBy: { designation: "asc" } }),
     db.iDCardRequest.findMany({
       where: { schoolId },
       include: {
@@ -28,6 +28,8 @@ export async function getHmData(schoolId: string) {
     db.attendance.findMany({ where: { student: { schoolId } } }),
     db.exam.findMany({ where: { schoolId }, include: { _count: { select: { marks: true, hallTickets: true } } } }),
     db.school.findUnique({ where: { id: schoolId } }),
+    db.hMHandover.findFirst({ where: { schoolId }, include: { authorizedUser: { select: { id: true, name: true, email: true, role: true } }, fromHM: { select: { name: true } } }, orderBy: { createdAt: "desc" } }),
+    db.staffOnboarding.findMany({ where: { schoolId }, orderBy: { invitedAt: "desc" } }),
   ]);
 
   const todayStart = new Date();
@@ -46,6 +48,9 @@ export async function getHmData(schoolId: string) {
     notices,
     auditLogs,
     exams,
+    handover,
+    onboardings,
+    attendance: attendanceToday,
     stats: {
       totalStudents: students.length,
       totalStaff: staff.length,

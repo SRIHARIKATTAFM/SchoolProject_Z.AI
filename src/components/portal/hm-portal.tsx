@@ -17,10 +17,12 @@ import { useToast } from "@/hooks/use-toast";
 import {
   LayoutDashboard, Users, GraduationCap, CalendarCheck, BookOpen, FileText, IdCard,
   Landmark, Megaphone, BarChart3, ScrollText, CheckCircle2, XCircle, Clock, Printer,
-  ShieldAlert, AlertTriangle,
+  ShieldAlert, AlertTriangle, UserCog, Crown, ArrowRightLeft,
 } from "lucide-react";
 import type { HmData } from "@/lib/portal-data";
 import { IssuanceDesk, type StudentLite, type RequestLite } from "@/components/portal/issuance-desk";
+import { StaffManager, HMHandoverPanel, type StaffLite } from "@/components/portal/staff-manager";
+import { SectionChangeButton } from "@/components/portal/section-change-button";
 
 const STATUS_TONE: Record<string, "default" | "success" | "warning" | "danger"> = {
   SUBMITTED: "warning",
@@ -53,6 +55,8 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
     { id: "dashboard", labelKey: "portal.dashboard", icon: LayoutDashboard },
     { id: "students", labelKey: "portal.students", icon: Users, count: data.stats.totalStudents },
     { id: "staff", labelKey: "portal.staff", icon: GraduationCap, count: data.stats.totalStaff },
+    { id: "roles", labelKey: "portal.roles", icon: UserCog },
+    { id: "handover", labelKey: "portal.handover", icon: Crown },
     { id: "attendance", labelKey: "portal.attendance", icon: CalendarCheck },
     { id: "academics", labelKey: "portal.academics", icon: BookOpen },
     { id: "exams", labelKey: "portal.exams", icon: FileText },
@@ -129,7 +133,7 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
     ),
     students: (
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0 scroll-thin">
           <Table>
             <TableHeader>
               <TableRow>
@@ -139,10 +143,11 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
                 <TableHead>{lang === "te" ? "లింగం" : "Gender"}</TableHead>
                 <TableHead>{lang === "te" ? "మాధ్యమం" : "Medium"}</TableHead>
                 <TableHead>{lang === "te" ? "వర్గం" : "Category"}</TableHead>
+                <TableHead>{lang === "te" ? "విభాగం" : "Section"}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.students.slice(0, 50).map((s) => (
+              {data.students.slice(0, 60).map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-mono text-xs">{s.admissionNo}</TableCell>
                   <TableCell className="font-medium">{s.name}</TableCell>
@@ -150,6 +155,7 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
                   <TableCell>{s.gender}</TableCell>
                   <TableCell>{s.medium}</TableCell>
                   <TableCell>{s.category ?? "—"}</TableCell>
+                  <TableCell><SectionChangeButton studentId={s.id} currentSection={s.enrolments[0]?.section ?? "A"} className={s.enrolments[0]?.className ?? "VI"} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -180,16 +186,44 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
         ))}
       </div>
     ),
+    roles: (
+      <StaffManager staff={data.staff as unknown as StaffLite[]} schoolId={data.schoolId} operatorId={operatorId} handover={data.handover as any} onboardings={data.onboardings} />
+    ),
+    handover: (
+      <HMHandoverPanel staff={data.staff as unknown as StaffLite[]} schoolId={data.schoolId} operatorId={operatorId} handover={data.handover as any} />
+    ),
     attendance: (
       <div className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <StatCard label={lang === "te" ? "హాజరు రేటు" : "Attendance Rate"} value={`${data.stats.attendanceRate}%`} icon={CalendarCheck} tone="success" />
-          <StatCard label={lang === "te" ? "నమోదైన ఎంట్రీలు" : "Records"} value={data.stats.totalStudents * 30} icon={FileText} />
-          <StatCard label={lang === "te" ? "తరగతులు" : "Classes"} value="VI–X" icon={BookOpen} />
+        <div className="grid gap-4 sm:grid-cols-4">
+          <StatCard label={lang === "te" ? "హాజరు రేటు" : "Attendance Rate"} value={`${data.stats.attendanceRate}%`} icon={CalendarCheck} tone={data.stats.attendanceRate > 85 ? "success" : "warning"} />
+          <StatCard label={lang === "te" ? "మొత్తం రికార్డులు" : "Total Records"} value={data.attendance.length} icon={FileText} />
+          <StatCard label={lang === "te" ? "హాజరైనవారు" : "Present"} value={data.attendance.filter((a) => a.status === "PRESENT").length} icon={CheckCircle2} tone="success" />
+          <StatCard label={lang === "te" ? "గైరుహాజరు" : "Absent"} value={data.attendance.filter((a) => a.status === "ABSENT").length} icon={XCircle} tone="danger" />
         </div>
-        <Card><CardContent className="p-4 text-sm text-muted-foreground">
-          {lang === "te" ? "తరగతి-స్థాయి హాజరు ట్రెండ్‌లు రిపోర్ట్‌ల విభాగంలో అందుబాటులో ఉన్నాయి." : "Class-level attendance trends are available in the Reports section."}
-        </CardContent></Card>
+        {/* Class-wise attendance breakdown */}
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{lang === "te" ? "తరగతి-వారీ హాజరు" : "Class-wise Attendance"}</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto p-0 scroll-thin">
+            <Table>
+              <TableHeader><TableRow><TableHead>Class</TableHead><TableHead>Present</TableHead><TableHead>Absent</TableHead><TableHead>Rate</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {["VI", "VII", "VIII", "IX", "X"].map((cls) => {
+                  const recs = data.attendance.filter((a) => a.className === cls);
+                  const present = recs.filter((a) => a.status === "PRESENT").length;
+                  const rate = recs.length > 0 ? Math.round((present / recs.length) * 100) : 0;
+                  return (
+                    <TableRow key={cls}>
+                      <TableCell className="font-medium">{cls}</TableCell>
+                      <TableCell>{present}</TableCell>
+                      <TableCell>{recs.filter((a) => a.status === "ABSENT").length}</TableCell>
+                      <TableCell><Badge variant={rate > 85 ? "default" : "secondary"}>{rate}%</Badge></TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     ),
     academics: (
@@ -218,7 +252,7 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
           <p>{lang === "te" ? "ఈ వేదిక అంతర్గత పాఠశాల పరీక్షల హాల్ టికెట్లను మాత్రమే జారీ చేస్తుంది. ఇవి అధికారిక AP SSC/DGE హాల్ టికెట్లు కావు." : "This platform issues INTERNAL school examination hall tickets only. These are NOT official AP SSC/DGE hall tickets."}</p>
         </div>
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="overflow-x-auto p-0 scroll-thin">
             <Table>
               <TableHeader><TableRow><TableHead>Exam</TableHead><TableHead>Class</TableHead><TableHead>Hall Tickets</TableHead><TableHead>Type</TableHead></TableRow></TableHeader>
               <TableBody>
@@ -247,7 +281,7 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
     ),
     schemes: (
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0 scroll-thin">
           <Table>
             <TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Scheme</TableHead><TableHead>Status</TableHead><TableHead>Aadhaar Ref</TableHead><TableHead>Bank Ref</TableHead></TableRow></TableHeader>
             <TableBody>
@@ -314,7 +348,7 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
     ),
     audit: (
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0 scroll-thin">
           <Table>
             <TableHeader><TableRow><TableHead>{lang === "te" ? "సమయం" : "Time"}</TableHead><TableHead>{lang === "te" ? "వినియోగదారు" : "User"}</TableHead><TableHead>{lang === "te" ? "చర్య" : "Action"}</TableHead><TableHead>{lang === "te" ? "వివరాలు" : "Details"}</TableHead></TableRow></TableHeader>
             <TableBody>
