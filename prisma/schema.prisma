@@ -1,0 +1,387 @@
+// AP School Digital Platform — Prisma schema
+// Reference implementation: ZPHS Kunaparajuparva
+// Note: SQLite has no native enums/arrays — use String + app-layer validation.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Tenant / hierarchy ────────────────────────────────────────────────
+model School {
+  id          String   @id @default(cuid())
+  udise       String   @unique
+  name        String
+  nameTe      String
+  mandal      String
+  district    String
+  state       String
+  established Int
+  medium      String // TM / EM / BOTH
+  address     String
+  phone       String
+  email       String
+  headmaster  String?
+  config      String? // JSON string of tenant config
+  createdAt   DateTime @default(now())
+
+  students      Student[]
+  staff         Staff[]
+  timetables    Timetable[]
+  exams         Exam[]
+  homework      Homework[]
+  idCards       IDCardRequest[]
+  schemes       SchemeApplication[]
+  notices       Notice[]
+  events        Event[]
+  achievements  Achievement[]
+  sscPapers     SSCPaper[]
+  users         User[]
+}
+
+// ─── Identity & auth ───────────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String // hashed (bcryptjs)
+  name      String
+  role      String // HM | TEACHER | STUDENT | PARENT | SCHEME_OPERATOR | ID_OPERATOR | MEO | DEO | STATE | MINISTER
+  schoolId  String?
+  school    School?  @relation(fields: [schoolId], references: [id])
+  staffId   String? @unique
+  studentId String? @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  staff        Staff?         @relation("StaffUser", fields: [staffId], references: [id])
+  student      Student?       @relation("StudentUser", fields: [studentId], references: [id])
+  auditLogs    AuditLog[]
+  idRequests   IDCardRequest[] @relation("IDRequester")
+  idApprovals  IDCardRequest[] @relation("IDApprover")
+  schemeOps    SchemeApplication[] @relation("SchemeOperator")
+}
+
+// ─── Staff ─────────────────────────────────────────────────────────────
+model Staff {
+  id            String   @id @default(cuid())
+  schoolId      String
+  school        School   @relation(fields: [schoolId], references: [id])
+  employeeId    String
+  name          String
+  nameTe        String?
+  designation   String // Headmaster | School Assistant | SGT | PET | LHS | Pandit
+  subject       String?
+  phone         String?
+  email         String?
+  qualification String?
+  joiningDate   DateTime
+  status        String // ACTIVE | ON_LEAVE | RETIRED
+  user          User?    @relation("StaffUser")
+  assignments   StaffAssignment[]
+  attendance    StaffAttendance[]
+  timetables    Timetable[]
+  homework      Homework[]
+}
+
+model StaffAssignment {
+  id        String @id @default(cuid())
+  staffId   String
+  staff     Staff  @relation(fields: [staffId], references: [id])
+  className String // VI-X
+  section   String // A / B
+  subject   String
+  role      String // CLASS_TEACHER | SUBJECT_TEACHER
+}
+
+model StaffAttendance {
+  id       String   @id @default(cuid())
+  staffId  String
+  staff    Staff    @relation(fields: [staffId], references: [id])
+  date     DateTime
+  status   String   // PRESENT | ABSENT | ON_LEAVE | ON_DUTY
+}
+
+// ─── Students & guardians ──────────────────────────────────────────────
+model Student {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  admissionNo String   @unique
+  name        String
+  nameTe      String?
+  fatherName  String
+  motherName  String
+  gender      String // M | F
+  dob         DateTime
+  caste       String?
+  category    String? // OC | BC-A | BC-B | BC-D | SC | ST
+  medium      String  // TM | EM
+  rollNo      String?
+  status      String  // ACTIVE | TRANSFERRED | PASSED_OUT
+  user        User?    @relation("StudentUser")
+
+  enrolments   Enrolment[]
+  guardians    StudentGuardian[]
+  attendance   Attendance[]
+  marks        Mark[]
+  homeworkSubs HomeworkSubmission[]
+  idCards      IDCardRequest[]
+  schemes      SchemeApplication[]
+  vault        RestrictedVault[]
+  hallTickets  HallTicket[]
+}
+
+model Enrolment {
+  id           String  @id @default(cuid())
+  studentId    String
+  student      Student @relation(fields: [studentId], references: [id])
+  academicYear String  // 2024-25
+  className    String  // VI-X
+  section      String  // A / B
+  status       String  // ENROLLED | PROMOTED | DETAINED
+}
+
+model Guardian {
+  id           String  @id @default(cuid())
+  name         String
+  nameTe       String?
+  relationship String  // FATHER | MOTHER | GUARDIAN
+  phone        String
+  email        String?
+  occupation   String?
+  students     StudentGuardian[]
+}
+
+model StudentGuardian {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id])
+  guardianId String
+  guardian   Guardian @relation(fields: [guardianId], references: [id])
+  isPrimary  Boolean  @default(false)
+}
+
+// ─── Attendance / timetable ────────────────────────────────────────────
+model Attendance {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  date      DateTime
+  status    String   // PRESENT | ABSENT | LATE
+  className String
+  section   String
+  markedBy  String
+}
+
+model Timetable {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  className String
+  section   String
+  day       String   // MON..SAT
+  period    Int
+  subject   String
+  staffId   String?
+  staff     Staff?   @relation(fields: [staffId], references: [id])
+  startTime String
+  endTime   String
+}
+
+// ─── Exams / marks / hall tickets (INTERNAL ONLY) ─────────────────────
+model Exam {
+  id           String   @id @default(cuid())
+  schoolId     String
+  school       School   @relation(fields: [schoolId], references: [id])
+  name         String   // FA1 | FA2 | SA1 | SA2
+  className    String
+  section      String
+  academicYear String
+  startDate    DateTime
+  endDate      DateTime
+  type         String   // INTERNAL_SCHOOL (never official SSC/DGE)
+  marks        Mark[]
+  hallTickets  HallTicket[]
+}
+
+model Mark {
+  id        String  @id @default(cuid())
+  examId    String
+  exam      Exam    @relation(fields: [examId], references: [id])
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+  subject   String
+  marks     Float
+  maxMarks  Float
+  grade     String?
+}
+
+model HallTicket {
+  id           String   @id @default(cuid())
+  examId       String
+  exam         Exam     @relation(fields: [examId], references: [id])
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id])
+  rollNo       String
+  issuedAt     DateTime @default(now())
+  printedCount Int      @default(0)
+  type         String   // INTERNAL_SCHOOL — explicitly NOT official AP SSC/DGE
+}
+
+// ─── Homework / LMS ────────────────────────────────────────────────────
+model Homework {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  className   String
+  section     String
+  subject     String
+  title       String
+  description String
+  dueDate     DateTime
+  staffId     String?
+  staff       Staff?   @relation(fields: [staffId], references: [id])
+  submissions HomeworkSubmission[]
+  createdAt   DateTime @default(now())
+}
+
+model HomeworkSubmission {
+  id          String    @id @default(cuid())
+  homeworkId  String
+  homework    Homework  @relation(fields: [homeworkId], references: [id])
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id])
+  status      String    // PENDING | SUBMITTED | LATE | GRADED
+  submittedAt DateTime?
+  content     String?
+  grade       String?
+}
+
+// ─── ID card workflow (operator submits, HM approves) ──────────────────
+model IDCardRequest {
+  id              String    @id @default(cuid())
+  schoolId        String
+  school          School    @relation(fields: [schoolId], references: [id])
+  studentId       String
+  student         Student   @relation(fields: [studentId], references: [id])
+  requestedById   String
+  requestedBy     User      @relation("IDRequester", fields: [requestedById], references: [id])
+  status          String    // DRAFT | SUBMITTED | APPROVED | REJECTED | PRINTED | ISSUED
+  photoUrl        String?
+  cardType        String    // NEW | REPLACEMENT
+  submittedAt     DateTime?
+  approvedById    String?
+  approvedBy      User?     @relation("IDApprover", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  printedAt       DateTime?
+  issuedAt        DateTime?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+}
+
+// ─── Schemes + restricted vault (Aadhaar ref / encrypted bank) ─────────
+model SchemeApplication {
+  id          String    @id @default(cuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id])
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id])
+  schemeName  String    // Amma Vodi | JVD | Vidya Kanuka | Pre-Matric Scholarship
+  status      String    // DRAFT | SUBMITTED | VERIFIED | APPROVED | REJECTED
+  appliedAt   DateTime  @default(now())
+  operatorId  String
+  operator    User      @relation("SchemeOperator", fields: [operatorId], references: [id])
+  aadhaarRef  String?   // reference code into vault
+  bankRef     String?   // reference code into vault (encrypted)
+}
+
+model RestrictedVault {
+  id             String   @id @default(cuid())
+  studentId      String
+  student        Student  @relation(fields: [studentId], references: [id])
+  type           String   // AADHAAR | BANK
+  refCode        String   @unique // masked reference, e.g. AAD-XXXX1234
+  encryptedValue String   // AES-encrypted (simulated) — never plaintext in DB
+  accessLogs     VaultAccessLog[]
+}
+
+model VaultAccessLog {
+  id         String           @id @default(cuid())
+  vaultId    String
+  vault      RestrictedVault  @relation(fields: [vaultId], references: [id])
+  accessedBy String
+  reason     String
+  action     String           // VIEW_REF | REVEAL_VALUE
+  accessedAt DateTime         @default(now())
+}
+
+// ─── CMS (public website content) ─────────────────────────────────────
+model Notice {
+  id          String    @id @default(cuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id])
+  title       String
+  titleTe     String?
+  content     String
+  contentTe   String?
+  category    String    // GENERAL | EXAM | HOLIDAY | MEETING | URGENT | ADMISSION
+  status      String    // DRAFT | PUBLISHED
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  title       String
+  titleTe     String?
+  description String
+  date        DateTime
+  location    String?
+  createdAt   DateTime @default(now())
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  title       String
+  titleTe     String?
+  description String
+  date        DateTime
+  level       String   // SCHOOL | MANDAL | DISTRICT | STATE | NATIONAL
+  createdAt   DateTime @default(now())
+}
+
+// ─── SSC central paper library (shared by all schools) ────────────────
+model SSCPaper {
+  id        String   @id @default(cuid())
+  schoolId  String?  // null = central shared library
+  school    School?  @relation(fields: [schoolId], references: [id])
+  year      Int
+  subject   String
+  subjectTe String?
+  medium    String   // TM | EM
+  docType   String   // ACTUAL_PAPER | MODEL_PAPER | BLUEPRINT | SUPPLEMENTARY
+  title     String
+  fileUrl   String?
+  createdAt DateTime @default(now())
+}
+
+// ─── Audit ─────────────────────────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(cuid())
+  schoolId  String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+}
