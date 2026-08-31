@@ -51,6 +51,7 @@ export interface RequestLite {
 }
 
 interface SchoolLite {
+  id: string;
   name: string;
   nameTe: string | null;
   udise: string;

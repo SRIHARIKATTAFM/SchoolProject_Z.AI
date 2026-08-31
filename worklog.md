@@ -112,3 +112,17 @@ Work Log:
 
 Stage Summary:
 - "School not configured." error eliminated. Public site loads fully in the preview panel. Lint clean. The fix is robust against future UDISE changes (no hardcoded UDISE anywhere in the data layer).
+
+---
+Task ID: 14
+Agent: main (orchestrator)
+Task: Fix "studentId and schoolId are required" error on photo upload and ID card issue.
+
+Work Log:
+- Diagnosed via VLM analysis of user screenshots: both the photo-upload and reissue/issue flows showed a red "Error — studentId and schoolId are required" toast.
+- Root cause: the `SchoolLite` interface in `issuance-desk.tsx` had no `id` field, and the HM portal's `schoolLite` object didn't include `data.school.id`. So when `ensureRequest()` called `POST /api/portal/id-card` with `{ studentId: selected.id, schoolId: school.id }`, `school.id` was `undefined` → the API returned 400 "studentId and schoolId are required".
+- Fix: added `id: string` to the `SchoolLite` interface; added `id: data.school.id` to the `schoolLite` object in `hm-portal.tsx`. The ID Operator portal already passed the full Prisma school object (which has `id`), so it was unaffected.
+- Verified with Agent Browser: logged in as HM → ID Cards → selected Eshwar (SUBMITTED, no photo) → uploaded photo → 1:1 crop → confirm → "Photo saved" toast (no error). Clicked "Issue identity card" → "issued" toast + ZPHS-KUN-26-007 assigned (confirmed in DB: status ISSUED, cardNo ZPHS-KUN-26-007, sidSnapshot SID-6-A-05, validTill 31 Mar 2027). No error toasts on either flow.
+
+Stage Summary:
+- "studentId and schoolId are required" error eliminated. Both photo upload and ID card issue/reissue flows work cleanly. Lint clean.

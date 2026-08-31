@@ -41,8 +41,8 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
   const [rejectReason, setRejectReason] = useState("");
 
   const schoolLite = data.school
-    ? { name: data.school.name, nameTe: data.school.nameTe, udise: data.school.udise, address: data.school.address, phone: data.school.phone, email: data.school.email }
-    : { name: "ZPHS Kunaparajuparva", nameTe: null, udise: "—", address: "—", phone: "—", email: "—" };
+    ? { id: data.school.id, name: data.school.name, nameTe: data.school.nameTe, udise: data.school.udise, address: data.school.address, phone: data.school.phone, email: data.school.email }
+    : { id: "", name: "ZPHS Kunaparajuparva", nameTe: null, udise: "—", address: "—", phone: "—", email: "—" };
 
   // notice form
   const [nTitle, setNTitle] = useState("");
