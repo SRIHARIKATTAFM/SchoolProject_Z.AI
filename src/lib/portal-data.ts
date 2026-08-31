@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 
 // ─── HM / Admin ────────────────────────────────────────────────────────
 export async function getHmData(schoolId: string) {
-  const [students, staff, idRequests, schemes, notices, auditLogs, attendanceToday, exams] = await Promise.all([
+  const [students, staff, idRequests, schemes, notices, auditLogs, attendanceToday, exams, school] = await Promise.all([
     db.student.findMany({
       where: { schoolId, status: "ACTIVE" },
       include: { enrolments: { orderBy: { academicYear: "desc" }, take: 1 } },
@@ -11,7 +11,11 @@ export async function getHmData(schoolId: string) {
     db.staff.findMany({ where: { schoolId }, include: { assignments: true }, orderBy: { designation: "asc" } }),
     db.iDCardRequest.findMany({
       where: { schoolId },
-      include: { student: true, requestedBy: { select: { name: true } }, approvedBy: { select: { name: true } } },
+      include: {
+        student: { include: { enrolments: { orderBy: { academicYear: "desc" }, take: 1 } } },
+        requestedBy: { select: { name: true } },
+        approvedBy: { select: { name: true } },
+      },
       orderBy: { createdAt: "desc" },
     }),
     db.schemeApplication.findMany({
@@ -23,6 +27,7 @@ export async function getHmData(schoolId: string) {
     db.auditLog.findMany({ where: { schoolId }, include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 20 }),
     db.attendance.findMany({ where: { student: { schoolId } } }),
     db.exam.findMany({ where: { schoolId }, include: { _count: { select: { marks: true, hallTickets: true } } } }),
+    db.school.findUnique({ where: { id: schoolId } }),
   ]);
 
   const todayStart = new Date();
@@ -33,6 +38,7 @@ export async function getHmData(schoolId: string) {
 
   return {
     schoolId,
+    school,
     students,
     staff,
     idRequests,
@@ -133,15 +139,20 @@ export type SchemeData = Awaited<ReturnType<typeof getSchemeData>>;
 
 // ─── ID card operator ──────────────────────────────────────────────────
 export async function getIdOperatorData(schoolId: string, operatorId: string) {
-  const [requests, students] = await Promise.all([
+  const [requests, students, school] = await Promise.all([
     db.iDCardRequest.findMany({
       where: { schoolId },
-      include: { student: true, requestedBy: { select: { name: true } }, approvedBy: { select: { name: true } } },
+      include: {
+        student: { include: { enrolments: { take: 1, orderBy: { academicYear: "desc" } } } },
+        requestedBy: { select: { name: true } },
+        approvedBy: { select: { name: true } },
+      },
       orderBy: { createdAt: "desc" },
     }),
     db.student.findMany({ where: { schoolId, status: "ACTIVE" }, include: { enrolments: { take: 1, orderBy: { academicYear: "desc" } } }, orderBy: { admissionNo: "asc" } }),
+    db.school.findUnique({ where: { id: schoolId } }),
   ]);
-  return { requests, students, operatorId };
+  return { requests, students, school, operatorId };
 }
 export type IdOperatorData = Awaited<ReturnType<typeof getIdOperatorData>>;
 

@@ -157,6 +157,8 @@ async function main() {
           medium: "TM",
           rollNo: String(n + 1),
           status: "ACTIVE",
+          bloodGroup: pick(["A+", "B+", "O+", "AB+", "A-", "O-"], idx),
+          emergencyContact: `9${700000000 + Math.floor(Math.random() * 99999999)}`,
           enrolments: {
             create: {
               academicYear: "2024-25",
@@ -376,11 +378,16 @@ async function main() {
   }
 
   // ─── ID Card requests (workflow: operator submits, HM approves) ───
-  // Some SUBMITTED (awaiting HM), some APPROVED, some ISSUED
+  // Some SUBMITTED (awaiting HM), some APPROVED, some ISSUED — with photos + design metadata.
   const idStatuses = ["SUBMITTED", "APPROVED", "PRINTED", "ISSUED", "SUBMITTED"];
+  // A small inline SVG placeholder photo (base64) for issued/printed cards.
+  const placeholderPhoto = "data:image/svg+xml;base64," + Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="320"><rect width="240" height="320" fill="#e2e8f0"/><circle cx="120" cy="120" r="55" fill="#94a3b8"/><rect x="40" y="190" width="160" height="110" rx="20" fill="#94a3b8"/></svg>`
+  ).toString("base64");
   for (let i = 0; i < 5; i++) {
     const s = students[i];
     const status = idStatuses[i];
+    const hasPhoto = status !== "SUBMITTED";
     await db.iDCardRequest.create({
       data: {
         schoolId: school.id,
@@ -388,6 +395,12 @@ async function main() {
         requestedById: idOp.id,
         status,
         cardType: i === 2 ? "REPLACEMENT" : "NEW",
+        photoUrl: hasPhoto ? placeholderPhoto : null,
+        photoZoom: hasPhoto ? 1 : null,
+        photoPositionX: hasPhoto ? 0.5 : null,
+        photoPositionY: hasPhoto ? 0.5 : null,
+        cardNo: status === "PRINTED" || status === "ISSUED" ? `KNP-ID-2025-${pad(1001 + i, 4)}` : null,
+        validityYear: "2024-25",
         submittedAt: date(2024, 12, 1 + i),
         approvedById: status !== "SUBMITTED" ? hmUser.id : null,
         approvedAt: status !== "SUBMITTED" ? date(2024, 12, 2 + i) : null,
@@ -395,6 +408,8 @@ async function main() {
         issuedAt: status === "ISSUED" ? date(2024, 12, 4 + i) : null,
       },
     });
+    // Persist the photo on the student too (so HM design preview has it).
+    if (hasPhoto) await db.student.update({ where: { id: s.id }, data: { photoUrl: placeholderPhoto } });
   }
 
   // ─── Scheme applications + restricted vault ───────────────────────

@@ -122,6 +122,9 @@ model Student {
   medium      String  // TM | EM
   rollNo      String?
   status      String  // ACTIVE | TRANSFERRED | PASSED_OUT
+  bloodGroup  String? // A+ | B+ | O+ | AB+ | etc.
+  photoUrl    String? // data-URL or path — primary student photo
+  emergencyContact String? // phone for emergencies (back of ID card)
   user        User?    @relation("StudentUser")
 
   enrolments   Enrolment[]
@@ -271,8 +274,13 @@ model IDCardRequest {
   requestedById   String
   requestedBy     User      @relation("IDRequester", fields: [requestedById], references: [id])
   status          String    // DRAFT | SUBMITTED | APPROVED | REJECTED | PRINTED | ISSUED
-  photoUrl        String?
+  photoUrl        String?   // photo captured at request time (data URL)
+  photoZoom       Float?    // crop zoom used when capturing photo
+  photoPositionX  Float?    // crop offset x (0-1)
+  photoPositionY  Float?    // crop offset y (0-1)
   cardType        String    // NEW | REPLACEMENT
+  cardNo          String?   // issued card serial number (e.g. KNP-ID-2025-0001)
+  validityYear    String?   // academic year the card is valid for (e.g. 2024-25)
   submittedAt     DateTime?
   approvedById    String?
   approvedBy      User?     @relation("IDApprover", fields: [approvedById], references: [id])

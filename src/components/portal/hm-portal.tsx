@@ -20,6 +20,7 @@ import {
   ShieldAlert, AlertTriangle,
 } from "lucide-react";
 import type { HmData } from "@/lib/portal-data";
+import { IdCardStudio, type IDCardRequestLite } from "@/components/portal/id-card-studio";
 
 const STATUS_TONE: Record<string, "default" | "success" | "warning" | "danger"> = {
   SUBMITTED: "warning",
@@ -38,6 +39,10 @@ export function HmPortal({ data }: { data: HmData }) {
   const [pending, startTransition] = useTransition();
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+
+  const schoolLite = data.school
+    ? { name: data.school.name, nameTe: data.school.nameTe, udise: data.school.udise, address: data.school.address, phone: data.school.phone, email: data.school.email }
+    : { name: "ZPHS Kunaparajuparva", nameTe: null, udise: "—", address: "—", phone: "—", email: "—" };
 
   // notice form
   const [nTitle, setNTitle] = useState("");
@@ -232,15 +237,18 @@ export function HmPortal({ data }: { data: HmData }) {
       </div>
     ),
     idcards: (
-      <div className="space-y-3">
-        {data.idRequests.map((r) => (
+      <div className="space-y-4">
+        <div className="flex items-start gap-2 rounded-md border border-amber-300/50 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>{lang === "te" ? "వేరు చేయబడిన బాధ్యతలు: ఆపరేటర్ అభ్యర్థనలను సమర్పిస్తారు — ప్రధానోపాధ్యాయులు మాత్రమే ఆమోదిస్తారు & జారీ చేస్తారు. ఆపరేటర్ తమ స్వంత అభ్యర్థనను ఆమోదించలేరు." : "Separation of duties: Operator submits — Headmaster approves & issues. Operator cannot approve their own request."}</p>
+        </div>
+        {/* Pending approvals: approve / reject inline */}
+        {data.idRequests.filter((r) => r.status === "SUBMITTED").map((r) => (
           <Card key={r.id}>
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                    {r.student.name[0]}
-                  </span>
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">{r.student.name[0]}</span>
                   <div>
                     <p className="text-sm font-semibold">{r.student.name}</p>
                     <p className="text-xs text-muted-foreground">{r.student.admissionNo} · {r.cardType}</p>
@@ -249,12 +257,8 @@ export function HmPortal({ data }: { data: HmData }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={STATUS_TONE[r.status] ?? "default"}>{r.status}</Badge>
-                  {r.status === "SUBMITTED" && (
-                    <>
-                      <Button size="sm" onClick={() => approve(r.id)} disabled={pending}><CheckCircle2 className="mr-1 h-3.5 w-3.5" />{lang === "te" ? "ఆమోదించు" : "Approve"}</Button>
-                      <Button size="sm" variant="outline" onClick={() => setRejectId(rejectId === r.id ? null : r.id)}><XCircle className="mr-1 h-3.5 w-3.5" />{lang === "te" ? "తిరస్కరించు" : "Reject"}</Button>
-                    </>
-                  )}
+                  <Button size="sm" onClick={() => approve(r.id)} disabled={pending}><CheckCircle2 className="mr-1 h-3.5 w-3.5" />{lang === "te" ? "ఆమోదించు" : "Approve"}</Button>
+                  <Button size="sm" variant="outline" onClick={() => setRejectId(rejectId === r.id ? null : r.id)}><XCircle className="mr-1 h-3.5 w-3.5" />{lang === "te" ? "తిరస్కరించు" : "Reject"}</Button>
                 </div>
               </div>
               {rejectId === r.id && (
@@ -267,6 +271,16 @@ export function HmPortal({ data }: { data: HmData }) {
             </CardContent>
           </Card>
         ))}
+        {/* Approved / Printed / Issued: full ID card studio with design preview + issue/reprint/print */}
+        <div className="space-y-4">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><IdCard className="h-3.5 w-3.5" />{lang === "te" ? "ID కార్డ్ డిజైన్ & జారీ" : "ID Card Design & Issuance"}</p>
+          {data.idRequests.filter((r) => r.status !== "SUBMITTED" && r.status !== "REJECTED").map((r) => (
+            <IdCardStudio key={r.id} request={r as unknown as IDCardRequestLite} school={schoolLite} role="HM" />
+          ))}
+          {data.idRequests.filter((r) => r.status !== "SUBMITTED" && r.status !== "REJECTED").length === 0 && (
+            <p className="text-sm text-muted-foreground">{lang === "te" ? "ఆమోదించబడిన కార్డులు లేవు." : "No approved cards to issue yet."}</p>
+          )}
+        </div>
       </div>
     ),
     schemes: (
