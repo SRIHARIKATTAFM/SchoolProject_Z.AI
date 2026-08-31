@@ -69,7 +69,7 @@ async function main() {
   // ─── School ────────────────────────────────────────────────────────
   const school = await db.school.create({
     data: {
-      udise: "28141200754",
+      udise: "28161500304",
       name: "ZPHS Kunaparajuparva",
       nameTe: teluguNames.school,
       mandal: "Bapatla",
@@ -81,7 +81,7 @@ async function main() {
       phone: "08643-224587",
       email: "zphs.kunaparajuparva@gmail.com",
       headmaster: "Sri. K. Rama Rao",
-      config: JSON.stringify({ academicYear: "2024-25", terms: ["FA1", "FA2", "SA1", "SA2"] }),
+      config: JSON.stringify({ academicYear: "2025-26", terms: ["FA1", "FA2", "SA1", "SA2"] }),
     },
   });
 
@@ -146,7 +146,7 @@ async function main() {
       const st = await db.student.create({
         data: {
           schoolId: school.id,
-          admissionNo: `KNP/${2024}/${pad(admissionCounter++, 4)}`,
+          admissionNo: `KNP/${2025}/${pad(admissionCounter++, 4)}`,
           name,
           nameTe: null,
           fatherName: `${fatherFirst[n % fatherFirst.length]} ${lastNames[n % lastNames.length]}`,
@@ -161,7 +161,7 @@ async function main() {
           emergencyContact: `9${700000000 + Math.floor(Math.random() * 99999999)}`,
           enrolments: {
             create: {
-              academicYear: "2024-25",
+              academicYear: "2025-26",
               className: cls,
               section: "A",
               status: "ENROLLED",
@@ -172,6 +172,24 @@ async function main() {
       students.push({ ...st, class: cls, section: "A" });
     }
   }
+
+  // ─── Generate Student IDs: SID-{classNum}-{section}-{nn} ──────────
+  // Sort names A–Z within each class+section, assign sequential numbers.
+  const CLASS_TO_NUM: Record<string, string> = { VI: "6", VII: "7", VIII: "8", IX: "9", X: "10" };
+  for (const cls of CLASSES) {
+    const inClass = students
+      .filter((s) => s.class === cls)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    inClass.forEach((s, i) => {
+      const sid = `SID-${CLASS_TO_NUM[cls]}-${s.section}-${pad(i + 1, 2)}`;
+      s.sid = sid;
+    });
+  }
+  // Persist SIDs to DB
+  for (const s of students) {
+    if (s.sid) await db.student.update({ where: { id: s.id }, data: { sid: s.sid } });
+  }
+  console.log(`  Generated ${students.length} SIDs (e.g. ${students[0].sid})`);
 
   // ─── Guardians (one primary per student) ───────────────────────────
   for (const s of students) {
@@ -380,14 +398,15 @@ async function main() {
   // ─── ID Card requests (workflow: operator submits, HM approves) ───
   // Some SUBMITTED (awaiting HM), some APPROVED, some ISSUED — with photos + design metadata.
   const idStatuses = ["SUBMITTED", "APPROVED", "PRINTED", "ISSUED", "SUBMITTED"];
-  // A small inline SVG placeholder photo (base64) for issued/printed cards.
+  // A small inline SVG placeholder photo (square 2×2) for issued/printed cards.
   const placeholderPhoto = "data:image/svg+xml;base64," + Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="320"><rect width="240" height="320" fill="#e2e8f0"/><circle cx="120" cy="120" r="55" fill="#94a3b8"/><rect x="40" y="190" width="160" height="110" rx="20" fill="#94a3b8"/></svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" fill="#e2e8f0"/><circle cx="120" cy="95" r="48" fill="#94a3b8"/><rect x="55" y="150" width="130" height="90" rx="16" fill="#94a3b8"/></svg>`
   ).toString("base64");
   for (let i = 0; i < 5; i++) {
     const s = students[i];
     const status = idStatuses[i];
     const hasPhoto = status !== "SUBMITTED";
+    const isIssued = status === "PRINTED" || status === "ISSUED";
     await db.iDCardRequest.create({
       data: {
         schoolId: school.id,
@@ -399,13 +418,15 @@ async function main() {
         photoZoom: hasPhoto ? 1 : null,
         photoPositionX: hasPhoto ? 0.5 : null,
         photoPositionY: hasPhoto ? 0.5 : null,
-        cardNo: status === "PRINTED" || status === "ISSUED" ? `KNP-ID-2025-${pad(1001 + i, 4)}` : null,
-        validityYear: "2024-25",
-        submittedAt: date(2024, 12, 1 + i),
+        cardNo: isIssued ? `ZPHS-KUN-26-${pad(i + 1, 3)}` : null,
+        sidSnapshot: isIssued ? s.sid : null,
+        validityYear: "2025-26",
+        validTill: "31 Mar 2026",
+        submittedAt: date(2025, 6, 1 + i),
         approvedById: status !== "SUBMITTED" ? hmUser.id : null,
-        approvedAt: status !== "SUBMITTED" ? date(2024, 12, 2 + i) : null,
-        printedAt: status === "PRINTED" || status === "ISSUED" ? date(2024, 12, 3 + i) : null,
-        issuedAt: status === "ISSUED" ? date(2024, 12, 4 + i) : null,
+        approvedAt: status !== "SUBMITTED" ? date(2025, 6, 2 + i) : null,
+        printedAt: status === "PRINTED" || status === "ISSUED" ? date(2025, 6, 3 + i) : null,
+        issuedAt: status === "ISSUED" ? date(2025, 6, 4 + i) : null,
       },
     });
     // Persist the photo on the student too (so HM design preview has it).

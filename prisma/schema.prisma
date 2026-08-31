@@ -111,6 +111,7 @@ model Student {
   schoolId    String
   school      School   @relation(fields: [schoolId], references: [id])
   admissionNo String   @unique
+  sid         String?  @unique // school student ID: SID-{classNum}-{section}-{nn} e.g. SID-10-A-01
   name        String
   nameTe      String?
   fatherName  String
@@ -279,8 +280,10 @@ model IDCardRequest {
   photoPositionX  Float?    // crop offset x (0-1)
   photoPositionY  Float?    // crop offset y (0-1)
   cardType        String    // NEW | REPLACEMENT
-  cardNo          String?   // issued card serial number (e.g. KNP-ID-2025-0001)
-  validityYear    String?   // academic year the card is valid for (e.g. 2024-25)
+  cardNo          String?   // issued card serial: ZPHS-KUN-{yy}-{nnn}
+  sidSnapshot     String?   // student ID at time of issue (SID-10-A-01)
+  validityYear    String?   // academic year (e.g. 2025-26)
+  validTill       String?   // human-readable "31 Mar 2026"
   submittedAt     DateTime?
   approvedById    String?
   approvedBy      User?     @relation("IDApprover", fields: [approvedById], references: [id])

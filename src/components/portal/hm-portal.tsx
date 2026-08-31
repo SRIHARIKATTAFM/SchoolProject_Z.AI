@@ -20,7 +20,7 @@ import {
   ShieldAlert, AlertTriangle,
 } from "lucide-react";
 import type { HmData } from "@/lib/portal-data";
-import { IdCardStudio, type IDCardRequestLite } from "@/components/portal/id-card-studio";
+import { IssuanceDesk, type StudentLite, type RequestLite } from "@/components/portal/issuance-desk";
 
 const STATUS_TONE: Record<string, "default" | "success" | "warning" | "danger"> = {
   SUBMITTED: "warning",
@@ -32,7 +32,7 @@ const STATUS_TONE: Record<string, "default" | "success" | "warning" | "danger"> 
   VERIFIED: "success",
 };
 
-export function HmPortal({ data }: { data: HmData }) {
+export function HmPortal({ data, operatorId }: { data: HmData; operatorId: string }) {
   const { t, lang } = useI18n();
   const router = useRouter();
   const { toast } = useToast();
@@ -240,47 +240,9 @@ export function HmPortal({ data }: { data: HmData }) {
       <div className="space-y-4">
         <div className="flex items-start gap-2 rounded-md border border-amber-300/50 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>{lang === "te" ? "వేరు చేయబడిన బాధ్యతలు: ఆపరేటర్ అభ్యర్థనలను సమర్పిస్తారు — ప్రధానోపాధ్యాయులు మాత్రమే ఆమోదిస్తారు & జారీ చేస్తారు. ఆపరేటర్ తమ స్వంత అభ్యర్థనను ఆమోదించలేరు." : "Separation of duties: Operator submits — Headmaster approves & issues. Operator cannot approve their own request."}</p>
+          <p>{lang === "te" ? "స్కూల్ కౌంటర్ డెస్క్ — విద్యార్థిని కనుగొనండి, 2x2 ఫోటో తీయండి, ఐడెంటిటీ కార్డు జారీ చేయండి." : "School counter desk — find a pupil, take a 2x2 photo, issue the identity card."}</p>
         </div>
-        {/* Pending approvals: approve / reject inline */}
-        {data.idRequests.filter((r) => r.status === "SUBMITTED").map((r) => (
-          <Card key={r.id}>
-            <CardContent className="p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">{r.student.name[0]}</span>
-                  <div>
-                    <p className="text-sm font-semibold">{r.student.name}</p>
-                    <p className="text-xs text-muted-foreground">{r.student.admissionNo} · {r.cardType}</p>
-                    <p className="text-[11px] text-muted-foreground">{lang === "te" ? "అభ్యర్థించారు" : "Requested by"} {r.requestedBy.name}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={STATUS_TONE[r.status] ?? "default"}>{r.status}</Badge>
-                  <Button size="sm" onClick={() => approve(r.id)} disabled={pending}><CheckCircle2 className="mr-1 h-3.5 w-3.5" />{lang === "te" ? "ఆమోదించు" : "Approve"}</Button>
-                  <Button size="sm" variant="outline" onClick={() => setRejectId(rejectId === r.id ? null : r.id)}><XCircle className="mr-1 h-3.5 w-3.5" />{lang === "te" ? "తిరస్కరించు" : "Reject"}</Button>
-                </div>
-              </div>
-              {rejectId === r.id && (
-                <div className="mt-3 flex gap-2">
-                  <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder={lang === "te" ? "తిరస్కరణ కారణం" : "Reason for rejection"} />
-                  <Button size="sm" variant="destructive" onClick={() => reject(r.id, rejectReason)}>{lang === "te" ? "నిర్ధారించు" : "Confirm"}</Button>
-                </div>
-              )}
-              {r.rejectionReason && <p className="mt-2 text-xs text-destructive">{lang === "te" ? "కారణం" : "Reason"}: {r.rejectionReason}</p>}
-            </CardContent>
-          </Card>
-        ))}
-        {/* Approved / Printed / Issued: full ID card studio with design preview + issue/reprint/print */}
-        <div className="space-y-4">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><IdCard className="h-3.5 w-3.5" />{lang === "te" ? "ID కార్డ్ డిజైన్ & జారీ" : "ID Card Design & Issuance"}</p>
-          {data.idRequests.filter((r) => r.status !== "SUBMITTED" && r.status !== "REJECTED").map((r) => (
-            <IdCardStudio key={r.id} request={r as unknown as IDCardRequestLite} school={schoolLite} role="HM" />
-          ))}
-          {data.idRequests.filter((r) => r.status !== "SUBMITTED" && r.status !== "REJECTED").length === 0 && (
-            <p className="text-sm text-muted-foreground">{lang === "te" ? "ఆమోదించబడిన కార్డులు లేవు." : "No approved cards to issue yet."}</p>
-          )}
-        </div>
+        <IssuanceDesk students={data.students as unknown as StudentLite[]} requests={data.idRequests as unknown as RequestLite[]} school={schoolLite} operatorId={operatorId} />
       </div>
     ),
     schemes: (

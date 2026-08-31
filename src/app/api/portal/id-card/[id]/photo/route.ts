@@ -8,8 +8,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const role = (session.user as any).role;
-  if (role !== "ID_OPERATOR")
-    return NextResponse.json({ error: "Only ID Card Operator may attach photos" }, { status: 403 });
+  if (role !== "ID_OPERATOR" && role !== "HM")
+    return NextResponse.json({ error: "Only school counter staff may attach photos" }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json().catch(() => ({}));

@@ -77,3 +77,24 @@ Work Log:
 
 Stage Summary:
 - Hydration error eliminated at its source (removed the pre-hydration script that caused useId divergence). All 8 ID card tasks from previous turn remain complete and verified. Lint clean, no runtime errors.
+
+---
+Task ID: 12
+Agent: main (orchestrator)
+Task: Implement Grok's school-counter ID card issuance spec (Student IDs, 2×2 square photos, camera capture, modern tricolour card design, ZPHS-KUN card numbers, dedicated issuance desk).
+
+Work Log:
+- Schema: added `sid` (SID-10-A-01) to Student; added `sidSnapshot` + `validTill` to IDCardRequest. Pushed to DB.
+- Seed: updated UDISE to 28161500304; academic year 2025-26; generated SIDs for all 30 students (sorted A–Z within each class+section, assigned SID-{classNum}-{section}-{nn}); updated card numbers to ZPHS-KUN-26-{nnn} format with sidSnapshot + validTill "31 Mar 2026".
+- CameraCapture component: opens webcam via getUserMedia, live preview with centre-square guide, captures square frame to canvas (480×480 JPEG), retake/confirm flow. Handles permission denied / no camera errors with fallback to upload.
+- PhotoEditor: redesigned to 1:1 square (2×2 inch CR80 standard); source chooser (Open camera / Upload photo); react-easy-crop with aspect=1; zoom slider with −/+ buttons; rotate 90°; drag to reposition; canvas crop to 480×480 JPEG.
+- IDCardDesign redesigned:
+  • Front: "Government of Andhra Pradesh" header → school name → "School Identity Card · 2025-26" → tricolour strip (saffron #FF9933 / white / green #138808) → 2×2 square photo (110×110) → name (uppercase) → detail rows (Student ID, Class in Roman, Gender, Admission No, Valid Till) → footer with UDISE + card no (DRAFT in amber until issued) + QR code.
+  • Back: tricolour strip → magnetic stripe → school name (EN+TE) → "If found, please return to" box with address + phone → emergency contact → disclaimer → signature line.
+- IssuanceDesk component (counter-style UI): left panel = student register with 4 filters (Class VI–X, Section A/B/C, partial Name, exact Student ID SID-10-A-01) + scrollable student list showing SID + status badge. Right panel (appears on selection): student header → photo card (2×2 preview + Take/Upload button) → issue card (Issue identity card / Reprint / Print / View full card) → live card preview (scaled front+back) → recently issued cards list for that pupil (photo thumbnail, name, SID, status). Print opens CR80 print window (@page 54mm × 85.6mm, front+back).
+- API updates: issue route now assigns ZPHS-KUN-{yy}-{nnn} (2-digit year + 3-digit sequence), snapshots student SID, computes validityYear + validTill (31 Mar of year after start). Photo + create-request routes now allow both HM and ID_OPERATOR (school counter staff).
+- HM portal: idcards section replaced with IssuanceDesk (counter desk). ID Operator portal: replaced with single IssuanceDesk section.
+- Fixed Turbopack stale-cache parse error (required full .next wipe + restart).
+
+Stage Summary:
+- Lint clean. Agent-browser verified: student register shows SIDs (SID-6-A-01...); selecting an ISSUED student (Divya) shows full card with "Government of Andhra Pradesh", tricolour, 2×2 photo, SID-6-A-04, Class VI-A, Valid Till 31 Mar 2026, UDISE 28161500304, Card No ZPHS-KUN-26-004, "If found please return to" back. Photo editor: source chooser (camera/upload) → upload → 1:1 crop → zoom → confirm → saved to DB. Issued Arjun's card → ZPHS-KUN-26-005 assigned, SID-6-A-01 snapshot, validTill 31 Mar 2027 (computed from current date). Both HM and ID Operator portals show the issuance desk.

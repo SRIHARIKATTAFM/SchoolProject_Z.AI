@@ -14,5 +14,5 @@ export default async function HmPage() {
   if (role !== "HM" || !schoolId) redirect("/portal");
 
   const data = await getHmData(schoolId);
-  return <HmPortal data={data} />;
+  return <HmPortal data={data} operatorId={(session.user as any).id} />;
 }
