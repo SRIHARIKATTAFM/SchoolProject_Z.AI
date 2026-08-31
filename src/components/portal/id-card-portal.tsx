@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n-provider";
+import { fmtDate } from "@/lib/date";
 import { PortalScaffold, StatCard, type NavItem } from "@/components/portal/portal-scaffold";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -107,7 +108,7 @@ export function IdCardPortal({ data }: { data: IdOperatorData }) {
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300"><IdCard className="h-4 w-4" /></span>
                 <div>
                   <p className="text-sm font-semibold">{r.student.name}</p>
-                  <p className="text-xs text-muted-foreground">{r.cardType} · {lang === "te" ? "జారీ" : "Issued"} {r.issuedAt ? new Date(r.issuedAt).toLocaleDateString("en-IN") : "—"}</p>
+                  <p className="text-xs text-muted-foreground">{r.cardType} · {lang === "te" ? "జారీ" : "Issued"} {r.issuedAt ? fmtDate(r.issuedAt) : "—"}</p>
                 </div>
               </div>
               <Badge variant="success">{r.status}</Badge>

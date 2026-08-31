@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n-provider";
+import { fmtDate } from "@/lib/date";
 import { PortalScaffold, StatCard, type NavItem } from "@/components/portal/portal-scaffold";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -78,7 +79,7 @@ export function ParentPortal({ data }: { data: NonNullable<StudentData> }) {
                   <div>
                     <div className="flex items-center gap-2"><p className="text-sm font-semibold">{h.title}</p><Badge variant="outline">{h.subject}</Badge></div>
                     <p className="mt-1 text-xs text-muted-foreground">{h.description}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{lang === "te" ? "గడువు" : "Due"}: {new Date(h.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{lang === "te" ? "గడువు" : "Due"}: {fmtDate(h.dueDate, "en-IN", { day: "numeric", month: "short" })}</p>
                   </div>
                   <Badge variant={status === "SUBMITTED" || status === "GRADED" ? "default" : "secondary"}>
                     {status === "SUBMITTED" && <CheckCircle2 className="mr-1 h-3 w-3" />}
@@ -146,7 +147,7 @@ export function ParentPortal({ data }: { data: NonNullable<StudentData> }) {
         {student.idCards.map((c) => (
           <Card key={c.id}>
             <CardContent className="flex items-center justify-between p-4">
-              <div><p className="text-sm font-semibold">{c.cardType} ID Card</p><p className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString("en-IN")}</p></div>
+              <div><p className="text-sm font-semibold">{c.cardType} ID Card</p><p className="text-xs text-muted-foreground">{fmtDate(c.createdAt)}</p></div>
               <Badge variant={c.status === "ISSUED" ? "default" : "secondary"}>{c.status}</Badge>
             </CardContent>
           </Card>

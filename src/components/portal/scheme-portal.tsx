@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n-provider";
+import { fmtDateTime } from "@/lib/date";
 import { PortalScaffold, StatCard, type NavItem } from "@/components/portal/portal-scaffold";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -145,7 +146,7 @@ export function SchemePortal({ data }: { data: SchemeData }) {
               {data.accessLogs.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground">{lang === "te" ? "ఇంకా వెల్లడులు లేవు." : "No reveals yet."}</TableCell></TableRow>}
               {data.accessLogs.map((l) => (
                 <TableRow key={l.id}>
-                  <TableCell className="text-xs">{new Date(l.accessedAt).toLocaleString("en-IN")}</TableCell>
+                  <TableCell className="text-xs">{fmtDateTime(l.accessedAt)}</TableCell>
                   <TableCell className="text-sm">{l.vault.student.name}</TableCell>
                   <TableCell><Badge variant={l.action === "REVEAL_VALUE" ? "destructive" : "secondary"}>{l.action}</Badge></TableCell>
                   <TableCell className="text-xs text-muted-foreground">{l.reason}</TableCell>

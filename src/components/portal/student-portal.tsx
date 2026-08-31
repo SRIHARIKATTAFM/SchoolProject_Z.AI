@@ -1,6 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n-provider";
+import { fmtDate } from "@/lib/date";
 import { PortalScaffold, StatCard, type NavItem } from "@/components/portal/portal-scaffold";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,7 +32,17 @@ export function StudentPortal({ data }: { data: NonNullable<StudentData> }) {
     examMap[k].push({ subject: m.subject, marks: m.marks, max: m.maxMarks, grade: m.grade ?? undefined });
   });
 
-  const todayStr = new Date().toLocaleDateString(lang === "te" ? "te-IN" : "en-IN", { weekday: "long", day: "numeric", month: "long" });
+  // Compute "today" only on the client to avoid SSR/client hydration mismatch.
+  const [todayStr, setTodayStr] = useState("");
+  const [todayIdx, setTodayIdx] = useState<number | null>(null);
+  useEffect(() => {
+    const now = new Date();
+    // Client-only time computation — eslint-disable to avoid hydration mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTodayStr(now.toLocaleDateString(lang === "te" ? "te-IN" : "en-IN", { weekday: "long", day: "numeric", month: "long" }));
+    setTodayIdx(now.getDay());
+  }, [lang]);
+  const todayKey = todayIdx !== null ? DAYS[(todayIdx + 6) % 7] : null;
 
   const nav: NavItem[] = [
     { id: "today", labelKey: "portal.today", icon: Home },
@@ -48,7 +60,7 @@ export function StudentPortal({ data }: { data: NonNullable<StudentData> }) {
       <div className="space-y-6">
         <Card className="bg-primary text-primary-foreground">
           <CardContent className="p-5">
-            <p className="text-sm opacity-90">{todayStr}</p>
+            <p className="text-sm opacity-90">{todayStr || "—"}</p>
             <h2 className="mt-1 text-2xl font-bold">{lang === "te" ? "నమస్కారం" : "Hello"}, {student.name.split(" ")[0]} 👋</h2>
             <p className="mt-1 text-sm opacity-90">{lang === "te" ? `మీ తరగతి` : "Your class"}: {enrolment?.className}-{enrolment?.section} · {lang === "te" ? "రోల్ నెం." : "Roll"} {student.rollNo}</p>
           </CardContent>
@@ -61,7 +73,7 @@ export function StudentPortal({ data }: { data: NonNullable<StudentData> }) {
         <Card>
           <CardHeader><CardTitle className="text-base">{lang === "te" ? "ఈరోజు షెడ్యూల్" : "Today's Schedule"}</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {timetable.filter((tt) => tt.day === DAYS[(new Date().getDay() + 6) % 7] || tt.day === DAYS[Math.max(0, (new Date().getDay() + 5) % 7)]).slice(0, 5).map((tt) => (
+            {timetable.filter((tt) => todayKey && (tt.day === todayKey)).slice(0, 5).map((tt) => (
               <div key={tt.id} className="flex items-center gap-3 rounded-md border border-border p-2.5">
                 <span className="font-mono text-xs text-muted-foreground">{tt.startTime}–{tt.endTime}</span>
                 <span className="text-sm font-medium">{tt.subject}</span>
@@ -89,7 +101,7 @@ export function StudentPortal({ data }: { data: NonNullable<StudentData> }) {
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{h.description}</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      {lang === "te" ? "గడువు" : "Due"}: {new Date(h.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                      {lang === "te" ? "గడువు" : "Due"}: {fmtDate(h.dueDate, "en-IN", { day: "numeric", month: "short" })}
                     </p>
                   </div>
                   <Badge variant={status === "SUBMITTED" || status === "GRADED" ? "default" : status === "LATE" ? "destructive" : "secondary"}>
@@ -145,7 +157,7 @@ export function StudentPortal({ data }: { data: NonNullable<StudentData> }) {
               <TableBody>
                 {attendance.slice(0, 14).map((a) => (
                   <TableRow key={a.id}>
-                    <TableCell className="text-sm">{new Date(a.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</TableCell>
+                    <TableCell className="text-sm">{fmtDate(a.date, "en-IN", { day: "numeric", month: "short" })}</TableCell>
                     <TableCell><Badge variant={a.status === "PRESENT" ? "default" : a.status === "LATE" ? "secondary" : "destructive"}>{a.status}</Badge></TableCell>
                   </TableRow>
                 ))}
@@ -200,7 +212,7 @@ export function StudentPortal({ data }: { data: NonNullable<StudentData> }) {
             <CardContent className="flex items-center justify-between p-4">
               <div>
                 <p className="text-sm font-semibold">{c.cardType} ID Card</p>
-                <p className="text-xs text-muted-foreground">{lang === "te" ? "అభ్యర్థించారు" : "Requested"}: {new Date(c.createdAt).toLocaleDateString("en-IN")}</p>
+                <p className="text-xs text-muted-foreground">{lang === "te" ? "అభ్యర్థించారు" : "Requested"}: {fmtDate(c.createdAt)}</p>
               </div>
               <Badge variant={c.status === "ISSUED" ? "default" : "secondary"}>{c.status}</Badge>
             </CardContent>
@@ -219,7 +231,7 @@ export function StudentPortal({ data }: { data: NonNullable<StudentData> }) {
               [lang === "te" ? "తండ్రి పేరు" : "Father", student.fatherName],
               [lang === "te" ? "తల్లి పేరు" : "Mother", student.motherName],
               [lang === "te" ? "లింగం" : "Gender", student.gender],
-              [lang === "te" ? "పుట్టిన తేదీ" : "DOB", new Date(student.dob).toLocaleDateString("en-IN")],
+              [lang === "te" ? "పుట్టిన తేదీ" : "DOB", fmtDate(student.dob)],
               [lang === "te" ? "వర్గం" : "Category", student.category ?? "—"],
               [lang === "te" ? "మాధ్యమం" : "Medium", student.medium],
               [lang === "te" ? "తరగతి" : "Class", `${enrolment?.className}-${enrolment?.section}`],

@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n-provider";
+import { fmtDate } from "@/lib/date";
 import { PortalScaffold, StatCard, type NavItem } from "@/components/portal/portal-scaffold";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -97,7 +98,7 @@ export function TeacherPortal({ data }: { data: TeacherData }) {
                     <Badge variant="outline">{h.subject}</Badge>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{h.description}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">{lang === "te" ? "గడువు" : "Due"}: {new Date(h.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{lang === "te" ? "గడువు" : "Due"}: {fmtDate(h.dueDate, "en-IN", { day: "numeric", month: "short" })}</p>
                 </div>
                 <Badge variant="secondary">{h._count.submissions} {lang === "te" ? "సమర్పణలు" : "submissions"}</Badge>
               </div>

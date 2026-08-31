@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n-provider";
+import { fmtDateTime } from "@/lib/date";
 import { PortalScaffold, StatCard, type NavItem } from "@/components/portal/portal-scaffold";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -343,7 +344,7 @@ export function HmPortal({ data }: { data: HmData }) {
             <TableBody>
               {data.auditLogs.map((a) => (
                 <TableRow key={a.id}>
-                  <TableCell className="text-xs">{new Date(a.createdAt).toLocaleString("en-IN")}</TableCell>
+                  <TableCell className="text-xs">{fmtDateTime(a.createdAt)}</TableCell>
                   <TableCell className="text-sm">{a.user?.name ?? "—"}</TableCell>
                   <TableCell><Badge variant="outline">{a.action}</Badge></TableCell>
                   <TableCell className="text-xs text-muted-foreground">{a.details ?? "—"}</TableCell>

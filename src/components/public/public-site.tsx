@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useI18n } from "@/lib/i18n-provider";
+import { fmtDate, fmtMonthShort, utcDay } from "@/lib/date";
 import { SiteHeader } from "@/components/public/site-header";
 import { SiteFooter } from "@/components/public/site-footer";
 import { SscLibrary } from "@/components/public/ssc-library";
@@ -267,7 +268,7 @@ export function PublicSite({ data }: { data: PublicData }) {
                           <div className="mt-1.5 flex items-center gap-2">
                             <Badge variant="outline" className="text-[10px]">{n.category}</Badge>
                             <span className="text-[10px] text-muted-foreground">
-                              {n.publishedAt ? new Date(n.publishedAt).toLocaleDateString(lang === "te" ? "te-IN" : "en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                              {n.publishedAt ? fmtDate(n.publishedAt, lang === "te" ? "te-IN" : "en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}
                             </span>
                           </div>
                         </div>
@@ -289,10 +290,10 @@ export function PublicSite({ data }: { data: PublicData }) {
                       <div className="flex items-start gap-3">
                         <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-border bg-muted/40 text-center">
                           <span className="text-[10px] uppercase text-muted-foreground">
-                            {new Date(e.date).toLocaleDateString("en-US", { month: "short" })}
+                            {fmtMonthShort(e.date)}
                           </span>
                           <span className="text-base font-bold leading-none">
-                            {new Date(e.date).getDate()}
+                            {utcDay(e.date)}
                           </span>
                         </div>
                         <div className="min-w-0">
@@ -327,7 +328,7 @@ export function PublicSite({ data }: { data: PublicData }) {
                     <p className="text-sm font-semibold">{pickLang(a.title, a.titleTe, lang)}</p>
                     <p className="mt-1.5 text-xs text-muted-foreground">{pickLang(a.description, null, lang)}</p>
                     <p className="mt-2 text-[11px] text-muted-foreground">
-                      {new Date(a.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      {fmtDate(a.date, "en-IN", { day: "numeric", month: "short", year: "numeric" })}
                     </p>
                   </CardContent>
                 </Card>
