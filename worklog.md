@@ -98,3 +98,17 @@ Work Log:
 
 Stage Summary:
 - Lint clean. Agent-browser verified: student register shows SIDs (SID-6-A-01...); selecting an ISSUED student (Divya) shows full card with "Government of Andhra Pradesh", tricolour, 2×2 photo, SID-6-A-04, Class VI-A, Valid Till 31 Mar 2026, UDISE 28161500304, Card No ZPHS-KUN-26-004, "If found please return to" back. Photo editor: source chooser (camera/upload) → upload → 1:1 crop → zoom → confirm → saved to DB. Issued Arjun's card → ZPHS-KUN-26-005 assigned, SID-6-A-01 snapshot, validTill 31 Mar 2027 (computed from current date). Both HM and ID Operator portals show the issuance desk.
+
+---
+Task ID: 13
+Agent: main (orchestrator)
+Task: Fix "School not configured." blank page in preview.
+
+Work Log:
+- Diagnosed via VLM analysis of user screenshots: the preview panel showed a blank white page with only "School not configured." text — the fallback message from PublicSite when data.school is null.
+- Root cause: src/lib/public-data.ts hardcoded `db.school.findFirst({ where: { udise: "28141200754" } })` — the OLD UDISE. The seed was updated in Task 12 to use UDISE 28161500304, so the hardcoded lookup returned null.
+- Fix: changed getPublicData() to fetch the first configured school generically (`db.school.findFirst({ orderBy: { createdAt: "asc" } })`) instead of hardcoding a UDISE that can drift during re-seeding. Also scoped all child queries (notices, events, achievements, staff, studentCount) to that school's ID so the page is always consistent. Added an early-return guard when no school exists (returns empty arrays instead of crashing).
+- Verified with Agent Browser: public site now loads with "ZPHS Kunaparajuparva", hero (Classes VI–X), SSC Corner, staff grid — all sections render. `notConfigured: false`. Title correct.
+
+Stage Summary:
+- "School not configured." error eliminated. Public site loads fully in the preview panel. Lint clean. The fix is robust against future UDISE changes (no hardcoded UDISE anywhere in the data layer).
