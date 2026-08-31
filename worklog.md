@@ -63,3 +63,17 @@ Work Log:
 
 Stage Summary:
 - Lint clean. Agent-browser verified: HM portal → ID Cards section renders studio with Issue/Reprint/Print; issuing an APPROVED card assigns cardNo (KNP-ID-2025-1004) and marks ISSUED (confirmed in DB); full-card preview dialog shows Both/Front/Back tabs with all fields (school header, photo, name, class, blood group AB+, DOB, father, UDISE, card no, QR code, emergency contact, "if found" text, signature line). ID Operator portal → Photo Editor dialog: upload → crop (3:4) → zoom/rotate/drag → confirm → photo saved to request + student record. Modern dual-sided ID card design fully implemented and printable.
+
+---
+Task ID: 11
+Agent: main (orchestrator)
+Task: Fix Radix UI `aria-controls` hydration mismatch on public site.
+
+Work Log:
+- Diagnosed root cause: `next-themes` ThemeProvider injects a pre-hydration <script> that modifies <html>'s class BEFORE React hydrates. This DOM mutation causes React 19's `useId` to generate different IDs on server vs. client for every Radix UI component (Sheet trigger, Select triggers), producing `aria-controls` attribute mismatches.
+- Verified no code depends on the removed providers: `useSession()` is not used anywhere (signIn/signOut work without SessionProvider — they POST directly to auth endpoints); `useTheme()` was only in sonner.tsx which is not imported (layout uses Radix Toaster, not Sonner).
+- Fix: simplified `src/components/providers.tsx` to only wrap `I18nProvider` — removed `ThemeProvider` (next-themes) and `SessionProvider` (next-auth). Updated `sonner.tsx` to use `theme="light"` instead of `useTheme()`.
+- Verified with Agent Browser: cleared cookies → loaded public site → zero hydration errors, zero aria-controls mismatches. SSC Library Selects (Year/Subject/Type) render and open correctly. Hard reload clean. Portal login still works (credentials POST → 200 → /portal/hm loads). Portal page also hydration-clean.
+
+Stage Summary:
+- Hydration error eliminated at its source (removed the pre-hydration script that caused useId divergence). All 8 ID card tasks from previous turn remain complete and verified. Lint clean, no runtime errors.
