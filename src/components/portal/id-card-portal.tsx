@@ -3,8 +3,9 @@
 import { useI18n } from "@/lib/i18n-provider";
 import { PortalScaffold, type NavItem } from "@/components/portal/portal-scaffold";
 import { IssuanceDesk, type StudentLite, type RequestLite } from "@/components/portal/issuance-desk";
-import { IdCard, ShieldAlert } from "lucide-react";
+import { IdCard, ShieldAlert, Crown } from "lucide-react";
 import type { IdOperatorData } from "@/lib/portal-data";
+import { StaffHandoverPanel } from "@/components/portal/staff-handover-panel";
 
 export function IdCardPortal({ data }: { data: IdOperatorData }) {
   const { lang } = useI18n();
@@ -15,6 +16,7 @@ export function IdCardPortal({ data }: { data: IdOperatorData }) {
 
   const nav: NavItem[] = [
     { id: "desk", labelKey: "portal.idCards", icon: IdCard, count: data.students.length },
+    { id: "handover", labelKey: "portal.handover", icon: Crown },
   ];
 
   const sections: Record<string, React.ReactNode> = {
@@ -30,6 +32,9 @@ export function IdCardPortal({ data }: { data: IdOperatorData }) {
         </div>
         <IssuanceDesk students={students} requests={requests} school={school} operatorId={data.operatorId} />
       </div>
+    ),
+    handover: (
+      <StaffHandoverPanel handover={data.handover as any} currentUserId={data.operatorId} />
     ),
   };
 

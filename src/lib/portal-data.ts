@@ -76,7 +76,7 @@ export async function getTeacherData(schoolId: string, staffId: string) {
   const className = primaryClass?.className ?? "X";
   const section = primaryClass?.section ?? "A";
 
-  const [students, homework, timetable, exams, attendance] = await Promise.all([
+  const [students, homework, timetable, exams, attendance, handover] = await Promise.all([
     db.student.findMany({
       where: { schoolId, status: "ACTIVE", enrolments: { some: { className, section, status: "ENROLLED" } } },
       include: { enrolments: { where: { className, section }, take: 1 } },
@@ -86,9 +86,10 @@ export async function getTeacherData(schoolId: string, staffId: string) {
     db.timetable.findMany({ where: { schoolId, className, section }, orderBy: [{ day: "asc" }, { period: "asc" }] }),
     db.exam.findMany({ where: { schoolId, className }, include: { marks: { where: { studentId: { in: [] } } } } }),
     db.attendance.findMany({ where: { className, section, student: { schoolId } } }),
+    db.hMHandover.findFirst({ where: { schoolId }, include: { authorizedUser: { select: { id: true, name: true, email: true, role: true } }, fromHM: { select: { name: true } } }, orderBy: { createdAt: "desc" } }),
   ]);
 
-  return { staff, assignments, className, section, students, homework, timetable, exams, attendance };
+  return { staff, assignments, className, section, students, homework, timetable, exams, attendance, handover };
 }
 export type TeacherData = Awaited<ReturnType<typeof getTeacherData>>;
 
@@ -144,7 +145,7 @@ export type SchemeData = Awaited<ReturnType<typeof getSchemeData>>;
 
 // ─── ID card operator ──────────────────────────────────────────────────
 export async function getIdOperatorData(schoolId: string, operatorId: string) {
-  const [requests, students, school] = await Promise.all([
+  const [requests, students, school, handover] = await Promise.all([
     db.iDCardRequest.findMany({
       where: { schoolId },
       include: {
@@ -156,8 +157,9 @@ export async function getIdOperatorData(schoolId: string, operatorId: string) {
     }),
     db.student.findMany({ where: { schoolId, status: "ACTIVE" }, include: { enrolments: { take: 1, orderBy: { academicYear: "desc" } } }, orderBy: { admissionNo: "asc" } }),
     db.school.findUnique({ where: { id: schoolId } }),
+    db.hMHandover.findFirst({ where: { schoolId }, include: { authorizedUser: { select: { id: true, name: true, email: true, role: true } }, fromHM: { select: { name: true } } }, orderBy: { createdAt: "desc" } }),
   ]);
-  return { requests, students, school, operatorId };
+  return { requests, students, school, operatorId, handover };
 }
 export type IdOperatorData = Awaited<ReturnType<typeof getIdOperatorData>>;
 

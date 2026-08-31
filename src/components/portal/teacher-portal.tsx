@@ -6,12 +6,13 @@ import { PortalScaffold, StatCard, type NavItem } from "@/components/portal/port
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, CalendarCheck, ClipboardList, CalendarDays, Megaphone, Users, GraduationCap, CheckCircle2 } from "lucide-react";
+import { BookOpen, CalendarCheck, ClipboardList, CalendarDays, Megaphone, Users, GraduationCap, CheckCircle2, Crown } from "lucide-react";
 import type { TeacherData } from "@/lib/portal-data";
+import { StaffHandoverPanel } from "@/components/portal/staff-handover-panel";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-export function TeacherPortal({ data }: { data: TeacherData }) {
+export function TeacherPortal({ data, userId }: { data: TeacherData; userId: string }) {
   const { lang } = useI18n();
   const { staff, className, section, students, homework, timetable, attendance } = data;
 
@@ -25,6 +26,7 @@ export function TeacherPortal({ data }: { data: TeacherData }) {
     { id: "homework", labelKey: "portal.homework", icon: BookOpen, count: homework.length },
     { id: "timetable", labelKey: "portal.timetable", icon: CalendarDays },
     { id: "announcements", labelKey: "portal.announcements", icon: Megaphone },
+    { id: "handover", labelKey: "portal.handover", icon: Crown },
   ];
 
   const sections: Record<string, React.ReactNode> = {
@@ -131,6 +133,9 @@ export function TeacherPortal({ data }: { data: TeacherData }) {
       <Card><CardContent className="p-4 text-sm text-muted-foreground">
         {lang === "te" ? "మీ తరగతికి ప్రకటనలు ప్రచురించండి. (డెమోలో చూడండి.)" : "Publish announcements to your class. (Demo view.)"}
       </CardContent></Card>
+    ),
+    handover: (
+      <StaffHandoverPanel handover={data.handover as any} currentUserId={userId} />
     ),
   };
 

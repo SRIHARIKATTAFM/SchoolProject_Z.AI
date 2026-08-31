@@ -145,3 +145,26 @@ Work Log:
 
 Stage Summary:
 - Lint clean. 45 students with sections A/B/C. Dark metallic-gray professional dashboard with white text. All portal pages mobile responsive (390px verified, no overflow). ID card dialogs render correctly on mobile + desktop. Section change works (A→B verified). Role onboarding works (Test Teacher created). HM handover authorization works (ACTIVE in DB). All HM dashboard sections show real data.
+
+---
+Task ID: 16
+Agent: main (orchestrator)
+Task: Fix HM Handover — 3 bugs identified and fixed.
+
+Work Log:
+- Diagnosed via Agent Browser testing:
+  • Bug 1: `OnboardHMPanel` checked only `handover?.status === "ACTIVE"` — so the current HM (who granted the authorization) ALSO saw the "Onboard new HM" panel. Should only be visible to the authorized user.
+  • Bug 2: The authorized user (e.g. a Teacher) logs into the Teacher portal, which had NO handover section — so they could never actually onboard the new HM.
+  • Bug 3: Leftover "ACTIVE" handover from a previous test session polluted the state.
+- Fix 1: `OnboardHMPanel` now checks `isAuthorized = handover?.status === "ACTIVE" && handover?.authorizedUser?.id === currentUserId`. Passes `operatorId` as `currentUserId`. The HM who granted the authorization does NOT see the onboard panel.
+- Fix 2: Created `StaffHandoverPanel` component — a standalone panel for non-HM staff (Teacher, ID Operator) that shows the "Onboard New Headmaster" panel IF they're the authorized user, or a status info card otherwise. Added "HM Handover" nav item to both Teacher portal and ID Operator portal. Updated `getTeacherData` and `getIdOperatorData` to include the `handover` record.
+- Fix 3: Cleared leftover handover + test teacher data from DB.
+- Verified full flow end-to-end:
+  1. HM logs in → HM Handover → selects "P. Lakshmi Devi" → grants authorization → handover ACTIVE in DB. HM sees "Authorization is ACTIVE" but does NOT see "Onboard new HM" panel.
+  2. Teacher (Lakshmi) logs in → Teacher portal → HM Handover nav item → sees "Onboard New Headmaster" panel (authorized by outgoing HM).
+  3. Teacher onboards "New HM Rao" (newhm@zphsknp.edu.in) → new HM user created with role HM → handover auto-changes to CONSUMED → onboard panel disappears, "Handover complete" shown.
+  4. New HM logs in with newhm@zphsknp.edu.in → Headmaster Dashboard loads. Handover complete.
+- Cleaned up test data.
+
+Stage Summary:
+- HM Handover fully working: HM authorizes → authorized staff sees onboard panel → onboards new HM → auto-disables. The current HM never sees the onboard button. Teachers and ID Operators now have a "HM Handover" section in their portals. Lint clean, no errors.

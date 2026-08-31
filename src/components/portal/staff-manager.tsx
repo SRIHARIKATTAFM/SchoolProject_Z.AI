@@ -317,13 +317,13 @@ export function HMHandoverPanel({
         </CardContent>
       </Card>
 
-      {/* Onboard new HM (visible to the authorized user, not the current HM) */}
-      <OnboardHMPanel handover={handover} />
+      {/* Onboard new HM — ONLY visible to the authorized user (not the current HM) */}
+      <OnboardHMPanel handover={handover} currentUserId={operatorId} />
     </div>
   );
 }
 
-function OnboardHMPanel({ handover }: { handover: StaffManagerProps["handover"] }) {
+function OnboardHMPanel({ handover, currentUserId }: { handover: StaffManagerProps["handover"]; currentUserId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const { lang } = useI18n();
@@ -334,7 +334,8 @@ function OnboardHMPanel({ handover }: { handover: StaffManagerProps["handover"] 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("demo123");
 
-  const canOnboard = handover?.status === "ACTIVE";
+  // Only the authorized user can onboard the new HM — NOT the current HM who granted it.
+  const isAuthorized = handover?.status === "ACTIVE" && handover?.authorizedUser?.id === currentUserId;
 
   async function onboardHM() {
     startTransition(async () => {
@@ -353,7 +354,7 @@ function OnboardHMPanel({ handover }: { handover: StaffManagerProps["handover"] 
     });
   }
 
-  if (!canOnboard) return null;
+  if (!isAuthorized) return null;
 
   return (
     <Card className="border-green-500/30 bg-green-500/5">

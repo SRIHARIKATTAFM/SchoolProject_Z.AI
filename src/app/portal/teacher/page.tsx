@@ -15,5 +15,5 @@ export default async function TeacherPage() {
   if (role !== "TEACHER" || !schoolId || !staffId) redirect("/portal");
 
   const data = await getTeacherData(schoolId, staffId);
-  return <TeacherPortal data={data} />;
+  return <TeacherPortal data={data} userId={(session.user as any).id} />;
 }
