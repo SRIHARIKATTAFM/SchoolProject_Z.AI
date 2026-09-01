@@ -168,3 +168,20 @@ Work Log:
 
 Stage Summary:
 - HM Handover fully working: HM authorizes → authorized staff sees onboard panel → onboards new HM → auto-disables. The current HM never sees the onboard button. Teachers and ID Operators now have a "HM Handover" section in their portals. Lint clean, no errors.
+
+---
+Task ID: 17
+Agent: main (orchestrator)
+Task: Enhancements — attendance charts, performance analytics, data export, timetable generation, notification bell.
+
+Work Log:
+- Seed expanded: 12 months of attendance (all 45 students, skipping Sundays + June vacation) for monthly chart trends; 4 exams (FA1/FA2/SA1/SA2) × 6 subjects for class X-A with per-student ability factors for realistic comparative analysis.
+- Attendance charts (recharts): AttendanceTrendChart (line, monthly rate), AttendanceBreakdownChart (stacked bar, present/late/absent per month), AttendancePie (overall distribution), DaysPresentChart (horizontal bar). Added useMonthlyAttendance hook for aggregation. Used in HM attendance section + Student attendance section.
+- Performance analytics: SubjectPerformanceBar (avg score per subject), SubjectRadar (subject-wise radar), ExamProgressChart (FA1→SA2 progress line), ComparativeBar (student vs class avg). aggregateMarks() helper. Used in Student results section — shows subject bar + radar + exam progress + per-exam progress bars.
+- Data export: src/lib/export.ts — exportCSV (with Excel BOM), exportPDF (jsPDF with pagination + table renderer). HM Reports section: Students CSV, Students PDF, Marks CSV. HM Attendance: attendance CSV + PDF summary. Student: attendance CSV, marks CSV, report card PDF.
+- Timetable generation: POST /api/portal/timetable/generate — auto-generates MON–SAT × 7 periods from staff subjects (rotating pool, Saturday last period = Games). HM Timetable section with class/section selectors + Generate button + grid view. Verified: generated 42 entries for X-A.
+- Notification bell: NotificationBell component in portal topbar — fetches published notices in layout, shows unread count badge, dropdown with notice list + "Mark all read", read state persisted in localStorage. Visible across all portals.
+- Fixed: Turbopack native SWC binary, NextAuth secret env restore, Prisma destructure + parse, rules-of-hooks (extracted StudentAttendanceSection component), corrupted Telugu char.
+
+Stage Summary:
+- Lint clean. 5 major enhancements shipped: (1) attendance visualization with monthly charts across all 12 months, (2) student performance analytics with subject/radar/exam-progress charts, (3) CSV+PDF export for students/attendance/marks/report cards, (4) timetable auto-generation from staff subjects, (5) notification bell with unread count. All verified with Agent Browser — 10 charts render in HM attendance, 8 charts in student attendance, 3 charts in student results, timetable generates 42 entries, export buttons present, bell shows notices.

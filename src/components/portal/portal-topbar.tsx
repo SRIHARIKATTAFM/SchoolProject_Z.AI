@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, LogOut, Home } from "lucide-react";
 import type { Role } from "@/lib/auth";
+import { NotificationBell, type NoticeBrief } from "@/components/portal/notification-bell";
 
 const ROLE_LABEL: Record<Role, { en: string; te: string }> = {
   HM: { en: "Headmaster", te: "ప్రధానోపాధ్యాయులు" },
@@ -26,10 +27,12 @@ export function PortalTopbar({
   name,
   role,
   schoolName,
+  notices = [],
 }: {
   name: string;
   role: Role;
   schoolName?: string;
+  notices?: NoticeBrief[];
 }) {
   const { lang } = useI18n();
   const label = ROLE_LABEL[role][lang];
@@ -50,6 +53,7 @@ export function PortalTopbar({
           {label}
         </Badge>
         <span className="hidden text-sm font-medium md:inline">{name}</span>
+        <NotificationBell notices={notices} lang={lang} />
         <LangToggle />
         <Button asChild variant="ghost" size="icon" aria-label="Home">
           <Link href="/"><Home className="h-4 w-4" /></Link>

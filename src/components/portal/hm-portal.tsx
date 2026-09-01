@@ -17,12 +17,14 @@ import { useToast } from "@/hooks/use-toast";
 import {
   LayoutDashboard, Users, GraduationCap, CalendarCheck, BookOpen, FileText, IdCard,
   Landmark, Megaphone, BarChart3, ScrollText, CheckCircle2, XCircle, Clock, Printer,
-  ShieldAlert, AlertTriangle, UserCog, Crown, ArrowRightLeft,
+  ShieldAlert, AlertTriangle, UserCog, Crown, ArrowRightLeft, CalendarDays, Download, Sparkles,
 } from "lucide-react";
 import type { HmData } from "@/lib/portal-data";
 import { IssuanceDesk, type StudentLite, type RequestLite } from "@/components/portal/issuance-desk";
 import { StaffManager, HMHandoverPanel, type StaffLite } from "@/components/portal/staff-manager";
 import { SectionChangeButton } from "@/components/portal/section-change-button";
+import { AttendanceTrendChart, AttendanceBreakdownChart, AttendancePie, useMonthlyAttendance } from "@/components/portal/attendance-charts";
+import { exportCSV, exportPDF, pdfTable } from "@/lib/export";
 
 const STATUS_TONE: Record<string, "default" | "success" | "warning" | "danger"> = {
   SUBMITTED: "warning",
@@ -59,6 +61,7 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
     { id: "handover", labelKey: "portal.handover", icon: Crown },
     { id: "attendance", labelKey: "portal.attendance", icon: CalendarCheck },
     { id: "academics", labelKey: "portal.academics", icon: BookOpen },
+    { id: "timetable", labelKey: "portal.timetable", icon: CalendarDays },
     { id: "exams", labelKey: "portal.exams", icon: FileText },
     { id: "idcards", labelKey: "portal.idCards", icon: IdCard, count: data.stats.pendingIdApprovals },
     { id: "schemes", labelKey: "portal.schemes", icon: Landmark },
@@ -193,38 +196,7 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
       <HMHandoverPanel staff={data.staff as unknown as StaffLite[]} schoolId={data.schoolId} operatorId={operatorId} handover={data.handover as any} />
     ),
     attendance: (
-      <div className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-4">
-          <StatCard label={lang === "te" ? "హాజరు రేటు" : "Attendance Rate"} value={`${data.stats.attendanceRate}%`} icon={CalendarCheck} tone={data.stats.attendanceRate > 85 ? "success" : "warning"} />
-          <StatCard label={lang === "te" ? "మొత్తం రికార్డులు" : "Total Records"} value={data.attendance.length} icon={FileText} />
-          <StatCard label={lang === "te" ? "హాజరైనవారు" : "Present"} value={data.attendance.filter((a) => a.status === "PRESENT").length} icon={CheckCircle2} tone="success" />
-          <StatCard label={lang === "te" ? "గైరుహాజరు" : "Absent"} value={data.attendance.filter((a) => a.status === "ABSENT").length} icon={XCircle} tone="danger" />
-        </div>
-        {/* Class-wise attendance breakdown */}
-        <Card>
-          <CardHeader><CardTitle className="text-sm">{lang === "te" ? "తరగతి-వారీ హాజరు" : "Class-wise Attendance"}</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto p-0 scroll-thin">
-            <Table>
-              <TableHeader><TableRow><TableHead>Class</TableHead><TableHead>Present</TableHead><TableHead>Absent</TableHead><TableHead>Rate</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {["VI", "VII", "VIII", "IX", "X"].map((cls) => {
-                  const recs = data.attendance.filter((a) => a.className === cls);
-                  const present = recs.filter((a) => a.status === "PRESENT").length;
-                  const rate = recs.length > 0 ? Math.round((present / recs.length) * 100) : 0;
-                  return (
-                    <TableRow key={cls}>
-                      <TableCell className="font-medium">{cls}</TableCell>
-                      <TableCell>{present}</TableCell>
-                      <TableCell>{recs.filter((a) => a.status === "ABSENT").length}</TableCell>
-                      <TableCell><Badge variant={rate > 85 ? "default" : "secondary"}>{rate}%</Badge></TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+      <AttendanceSection data={data} lang={lang} />
     ),
     academics: (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -269,6 +241,9 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
           </CardContent>
         </Card>
       </div>
+    ),
+    timetable: (
+      <TimetableSection data={data} lang={lang} />
     ),
     idcards: (
       <div className="space-y-4">
@@ -337,14 +312,7 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
       </div>
     ),
     reports: (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label={lang === "te" ? "మొత్తం విద్యార్థులు" : "Total Students"} value={data.stats.totalStudents} icon={Users} />
-        <StatCard label={lang === "te" ? "హాజరు రేటు" : "Attendance Rate"} value={`${data.stats.attendanceRate}%`} icon={CalendarCheck} tone="success" />
-        <StatCard label={lang === "te" ? "ప్రచురిత సూచనలు" : "Published Notices"} value={data.stats.publishedNotices} icon={Megaphone} />
-        <StatCard label={lang === "te" ? "ID కార్డులు జారీ" : "ID Cards Issued"} value={data.idRequests.filter((r) => r.status === "ISSUED").length} icon={IdCard} tone="success" />
-        <StatCard label={lang === "te" ? "పథకాలు ఆమోదితం" : "Schemes Approved"} value={data.schemes.filter((s) => s.status === "APPROVED").length} icon={Landmark} />
-        <StatCard label={lang === "te" ? "సిబ్బంది" : "Staff"} value={data.stats.totalStaff} icon={GraduationCap} />
-      </div>
+      <ReportsSection data={data} lang={lang} />
     ),
     audit: (
       <Card>
@@ -374,5 +342,221 @@ export function HmPortal({ data, operatorId }: { data: HmData; operatorId: strin
       title={lang === "te" ? "ప్రధానోపాధ్యాయుల డాష్‌బోర్డ్" : "Headmaster Dashboard"}
       subtitle={lang === "te" ? "పాఠశాల కార్యాచరణల పూర్తి నియంత్రణ" : "Complete school operations control"}
     />
+  );
+}
+
+// ─── Attendance section with charts + export ──────────────────────────
+function AttendanceSection({ data, lang }: { data: HmData; lang: "en" | "te" }) {
+  const monthly = useMonthlyAttendance(data.attendance as any);
+  const present = data.attendance.filter((a) => a.status === "PRESENT").length;
+  const absent = data.attendance.filter((a) => a.status === "ABSENT").length;
+  const late = data.attendance.filter((a) => a.status === "LATE").length;
+
+  function exportCSVAttendance() {
+    const rows = data.attendance.map((a) => [
+      a.studentId, a.className, a.section, a.status, fmtDateTime(a.date),
+    ]);
+    exportCSV("attendance-records", rows, ["Student ID", "Class", "Section", "Status", "Date"]);
+  }
+
+  function exportPDFAttendance() {
+    exportPDF("attendance-summary", "Attendance Summary", (doc) => {
+      pdfTable(doc, ["Class", "Present", "Absent", "Late", "Rate %"],
+        ["VI", "VII", "VIII", "IX", "X"].map((cls) => {
+          const recs = data.attendance.filter((a) => a.className === cls);
+          const p = recs.filter((a) => a.status === "PRESENT").length;
+          const ab = recs.filter((a) => a.status === "ABSENT").length;
+          const l = recs.filter((a) => a.status === "LATE").length;
+          const r = recs.length > 0 ? Math.round((p / recs.length) * 100) : 0;
+          return [cls, p, ab, l, `${r}%`];
+        })
+      );
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-4">
+        <StatCard label={lang === "te" ? "హాజరు రేటు" : "Attendance Rate"} value={`${data.stats.attendanceRate}%`} icon={CalendarCheck} tone={data.stats.attendanceRate > 85 ? "success" : "warning"} />
+        <StatCard label={lang === "te" ? "మొత్తం రికార్డులు" : "Total Records"} value={data.attendance.length} icon={FileText} />
+        <StatCard label={lang === "te" ? "హాజరైనవారు" : "Present"} value={present} icon={CheckCircle2} tone="success" />
+        <StatCard label={lang === "te" ? "గైరుహాజరు" : "Absent"} value={absent} icon={XCircle} tone="danger" />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={exportCSVAttendance}><Download className="mr-1.5 h-3.5 w-3.5" />{lang === "te" ? "CSV" : "Export CSV"}</Button>
+        <Button variant="outline" size="sm" onClick={exportPDFAttendance}><Download className="mr-1.5 h-3.5 w-3.5" />{lang === "te" ? "PDF" : "Export PDF"}</Button>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{lang === "te" ? "నెలవారీ హాజరు ట్రెండ్" : "Monthly Attendance Trend"}</CardTitle></CardHeader>
+          <CardContent><AttendanceTrendChart data={monthly} /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{lang === "te" ? "నెలవారీ విభజన" : "Monthly Breakdown"}</CardTitle></CardHeader>
+          <CardContent><AttendanceBreakdownChart data={monthly} /></CardContent>
+        </Card>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{lang === "te" ? "మొత్తం పంపిణీ" : "Overall Distribution"}</CardTitle></CardHeader>
+          <CardContent>
+            <AttendancePie data={[
+              { name: lang === "te" ? "హాజరు" : "Present", value: present },
+              { name: lang === "te" ? "లేట్" : "Late", value: late },
+              { name: lang === "te" ? "గైరుహాజరు" : "Absent", value: absent },
+            ]} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{lang === "te" ? "తరగతి-వారీ హాజరు" : "Class-wise Attendance"}</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto p-0 scroll-thin">
+            <Table>
+              <TableHeader><TableRow><TableHead>Class</TableHead><TableHead>Present</TableHead><TableHead>Absent</TableHead><TableHead>Rate</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {["VI", "VII", "VIII", "IX", "X"].map((cls) => {
+                  const recs = data.attendance.filter((a) => a.className === cls);
+                  const p = recs.filter((a) => a.status === "PRESENT").length;
+                  const rate = recs.length > 0 ? Math.round((p / recs.length) * 100) : 0;
+                  return (
+                    <TableRow key={cls}>
+                      <TableCell className="font-medium">{cls}</TableCell>
+                      <TableCell>{p}</TableCell>
+                      <TableCell>{recs.filter((a) => a.status === "ABSENT").length}</TableCell>
+                      <TableCell><Badge variant={rate > 85 ? "default" : "secondary"}>{rate}%</Badge></TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ─── Timetable section with generation + class view ────────────────────
+function TimetableSection({ data, lang }: { data: HmData; lang: "en" | "te" }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [pending, startTransition] = useTransition();
+  const [selClass, setSelClass] = useState("X");
+  const [selSection, setSelSection] = useState("A");
+
+  const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const periods = [1, 2, 3, 4, 5, 6, 7];
+
+  const rows = data.timetables.filter((t) => t.className === selClass && t.section === selSection);
+
+  async function generate() {
+    startTransition(async () => {
+      const res = await fetch("/api/portal/timetable/generate", {
+        method: "POST",
+        body: JSON.stringify({ className: selClass, section: selSection }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const j = await res.json();
+      toast({
+        title: res.ok ? (lang === "te" ? "షెడ్యూల్ జనరేట్ అయింది" : "Timetable generated") : "Error",
+        description: res.ok ? `${selClass}-${selSection}: ${j.count} entries` : j.error,
+        variant: res.ok ? "default" : "destructive",
+      });
+      if (res.ok) router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <Label className="text-xs">{lang === "te" ? "తరగతి" : "Class"}</Label>
+          <Select value={selClass} onValueChange={setSelClass}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>{["VI", "VII", "VIII", "IX", "X"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">{lang === "te" ? "విభాగం" : "Section"}</Label>
+          <Select value={selSection} onValueChange={setSelSection}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>{["A", "B", "C"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <Button onClick={generate} disabled={pending}>
+          <Sparkles className="mr-1.5 h-4 w-4" />{lang === "te" ? "జనరేట్ చేయి" : "Generate Timetable"}
+        </Button>
+      </div>
+      <Card>
+        <CardContent className="overflow-x-auto p-0 scroll-thin">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{lang === "te" ? "పీరియడ్" : "Period"}</TableHead>
+                {DAYS.map((d) => <TableHead key={d}>{d}</TableHead>)}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {periods.map((p) => (
+                <TableRow key={p}>
+                  <TableCell className="font-medium">P{p}</TableCell>
+                  {DAYS.map((d) => {
+                    const tt = rows.find((t) => t.day === d && t.period === p);
+                    return <TableCell key={d} className="text-xs">{tt ? <span className="font-medium">{tt.subject}<br /><span className="text-muted-foreground">{tt.startTime}</span></span> : <span className="text-muted-foreground">—</span>}</TableCell>;
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      {rows.length === 0 && <p className="text-sm text-muted-foreground">{lang === "te" ? "ఈ తరగతికి షెడ్యూల్ లేదు. జనరేట్ క్లిక్ చేయండి." : "No timetable for this class. Click Generate."}</p>}
+    </div>
+  );
+}
+
+// ─── Reports section with KPIs + export buttons ────────────────────────
+function ReportsSection({ data, lang }: { data: HmData; lang: "en" | "te" }) {
+  function exportStudentsCSV() {
+    const rows = data.students.map((s) => [s.admissionNo, s.sid ?? "", s.name, s.enrolments[0]?.className ?? "", s.enrolments[0]?.section ?? "", s.gender, s.medium, s.category ?? "", s.bloodGroup ?? ""]);
+    exportCSV("students-list", rows, ["Admission No", "SID", "Name", "Class", "Section", "Gender", "Medium", "Category", "Blood Group"]);
+  }
+
+  function exportStudentsPDF() {
+    exportPDF("students-report", "Student List — ZPHS Kunaparajuparva", (doc) => {
+      pdfTable(doc, ["Adm No", "SID", "Name", "Class", "Gender", "Blood"],
+        data.students.map((s) => [s.admissionNo, s.sid ?? "", s.name, `${s.enrolments[0]?.className ?? ""}-${s.enrolments[0]?.section ?? ""}`, s.gender, s.bloodGroup ?? "—"])
+      );
+    });
+  }
+
+  function exportMarksCSV() {
+    const rows: (string | number)[][] = [];
+    data.exams.forEach((e) => {
+      e.marks.forEach((m: any) => {
+        rows.push([e.name, e.className, m.student.name, m.subject, m.marks, m.maxMarks, m.grade ?? ""]);
+      });
+    });
+    exportCSV("marks-report", rows, ["Exam", "Class", "Student", "Subject", "Marks", "Max", "Grade"]);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label={lang === "te" ? "మొత్తం విద్యార్థులు" : "Total Students"} value={data.stats.totalStudents} icon={Users} />
+        <StatCard label={lang === "te" ? "హాజరు రేటు" : "Attendance Rate"} value={`${data.stats.attendanceRate}%`} icon={CalendarCheck} tone="success" />
+        <StatCard label={lang === "te" ? "ప్రచురిత సూచనలు" : "Published Notices"} value={data.stats.publishedNotices} icon={Megaphone} />
+        <StatCard label={lang === "te" ? "ID కార్డులు జారీ" : "ID Cards Issued"} value={data.idRequests.filter((r) => r.status === "ISSUED").length} icon={IdCard} tone="success" />
+        <StatCard label={lang === "te" ? "పథకాలు ఆమోదితం" : "Schemes Approved"} value={data.schemes.filter((s) => s.status === "APPROVED").length} icon={Landmark} />
+        <StatCard label={lang === "te" ? "సిబ్బంది" : "Staff"} value={data.stats.totalStaff} icon={GraduationCap} />
+      </div>
+      <Card>
+        <CardHeader><CardTitle className="flex items-center gap-2 text-sm"><Download className="h-4 w-4" />{lang === "te" ? "డేటా ఎక్స్‌పోర్ట్" : "Data Export"}</CardTitle></CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={exportStudentsCSV}><Download className="mr-1.5 h-3.5 w-3.5" />{lang === "te" ? "విద్యార్థుల CSV" : "Students CSV"}</Button>
+          <Button variant="outline" size="sm" onClick={exportStudentsPDF}><Download className="mr-1.5 h-3.5 w-3.5" />{lang === "te" ? "విద్యార్థుల PDF" : "Students PDF"}</Button>
+          <Button variant="outline" size="sm" onClick={exportMarksCSV}><Download className="mr-1.5 h-3.5 w-3.5" />{lang === "te" ? "మార్కుల CSV" : "Marks CSV"}</Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

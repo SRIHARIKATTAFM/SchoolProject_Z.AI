@@ -255,41 +255,42 @@ async function main() {
   await db.user.create({ data: { email: "state@ap.gov.in", password: pw, name: "State Education Dept", role: "STATE" } });
   await db.user.create({ data: { email: "minister@ap.gov.in", password: pw, name: "Education Minister", role: "MINISTER" } });
 
-  // ─── Attendance (last 30 working days for class X) ─────────────────
-  const classX = students.filter((s) => s.class === "X");
-  for (let d = 0; d < 30; d++) {
-    const day = date(2024, 11, d + 1); // Dec 2024
-    if (day.getDay() === 0) continue; // skip Sunday
-    for (const s of classX) {
-      const r = Math.random();
-      const status = r > 0.92 ? "ABSENT" : r > 0.88 ? "LATE" : "PRESENT";
-      await db.attendance.create({
-        data: {
-          studentId: s.id,
-          date: day,
-          status,
-          className: "X",
-          section: "A",
-          markedBy: staffRecords[1].id,
-        },
-      });
+  // ─── Attendance (all 12 months, all students) ─────────────────────
+  // Generates ~12 months of attendance data for every active student so charts
+  // can show monthly trends and individual breakdowns.
+  const MONTHS_2024_25 = [
+    [2025, 0], [2025, 1], [2025, 2], [2025, 3], [2025, 4], [2025, 5],
+    [2025, 6], [2025, 7], [2025, 8], [2025, 9], [2025, 10], [2025, 11],
+  ];
+  const perStudentRate: Record<string, number> = {};
+  students.forEach((s) => { perStudentRate[s.id] = 0.8 + Math.random() * 0.18; });
+  for (const [yr, mo] of MONTHS_2024_25) {
+    const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const day = new Date(yr, mo, d);
+      const dow = day.getDay();
+      if (dow === 0) continue; // skip Sunday
+      // School holiday months: May (4) partial, June (5) vacation — skip most
+      if (mo === 4 && d > 15) continue;    // summer break starts mid-May
+      if (mo === 5) continue;               // June = vacation
+      for (const s of students) {
+        const r = Math.random();
+        const baseRate = perStudentRate[s.id] ?? 0.9;
+        const status = r > baseRate + 0.05 ? "ABSENT" : r > baseRate ? "LATE" : "PRESENT";
+        await db.attendance.create({
+          data: {
+            studentId: s.id,
+            date: day,
+            status,
+            className: s.class,
+            section: s.section,
+            markedBy: staffRecords[1].id,
+          },
+        });
+      }
     }
   }
-  // attendance summary for other classes (a few days)
-  for (const s of students.filter((s) => s.class !== "X")) {
-    for (let d = 1; d <= 5; d++) {
-      await db.attendance.create({
-        data: {
-          studentId: s.id,
-          date: date(2024, 12, d),
-          status: Math.random() > 0.9 ? "ABSENT" : "PRESENT",
-          className: s.class,
-          section: "A",
-          markedBy: staffRecords[1].id,
-        },
-      });
-    }
-  }
+  console.log("  Generated 12 months of attendance for", students.length, "students");
 
   // ─── Staff attendance (last 30 days) ──────────────────────────────
   for (let d = 0; d < 30; d++) {
@@ -336,45 +337,63 @@ async function main() {
     }
   }
 
-  // ─── Exams + marks (FA1 for class X) ──────────────────────────────
-  const exam = await db.exam.create({
-    data: {
-      schoolId: school.id,
-      name: "FA1",
-      className: "X",
-      section: "A",
-      academicYear: "2024-25",
-      startDate: date(2024, 8, 12),
-      endDate: date(2024, 8, 16),
-      type: "INTERNAL_SCHOOL",
-    },
-  });
+  // ─── Exams + marks (FA1, FA2, SA1, SA2 for class X-A) ─────────────
+  const classX = students.filter((s) => s.class === "X");
   const examSubjects = ["Telugu", "English", "Mathematics", "Physical Science", "Biological Science", "Social Studies"];
-  for (const s of classX) {
-    for (const subj of examSubjects) {
-      const m = 20 + Math.floor(Math.random() * 60); // 20-80 out of 100
-      await db.mark.create({
-        data: {
-          examId: exam.id,
-          studentId: s.id,
-          subject: subj,
-          marks: m,
-          maxMarks: 100,
-          grade: m >= 90 ? "A1" : m >= 80 ? "A2" : m >= 70 ? "B1" : m >= 60 ? "B2" : m >= 50 ? "C1" : m >= 40 ? "C2" : "D",
-        },
-      });
-    }
-    // internal hall ticket (NOT official SSC/DGE)
-    await db.hallTicket.create({
+  const EXAM_DEFS = [
+    { name: "FA1", start: [2025, 7, 12], end: [2025, 7, 16], maxMarks: 20, factor: 0.8 },
+    { name: "FA2", start: [2025, 9, 5], end: [2025, 9, 9], maxMarks: 20, factor: 0.85 },
+    { name: "SA1", start: [2025, 10, 20], end: [2025, 10, 28], maxMarks: 100, factor: 0.75 },
+    { name: "SA2", start: [2025, 11, 15], end: [2025, 11, 23], maxMarks: 100, factor: 0.78 },
+  ];
+  // Per-student ability factor so trends are consistent across exams.
+  const studentAbility: Record<string, number> = {};
+  classX.forEach((s) => { studentAbility[s.id] = 0.5 + Math.random() * 0.4; });
+  for (const ed of EXAM_DEFS) {
+    const exam = await db.exam.create({
       data: {
-        examId: exam.id,
-        studentId: s.id,
-        rollNo: `X-A-${s.rollNo}`,
-        printedCount: 1,
+        schoolId: school.id,
+        name: ed.name,
+        className: "X",
+        section: "A",
+        academicYear: "2025-26",
+        startDate: date(ed.start[0], ed.start[1] + 1, ed.start[2]),
+        endDate: date(ed.end[0], ed.end[1] + 1, ed.end[2]),
         type: "INTERNAL_SCHOOL",
       },
     });
+    for (const s of classX) {
+      for (const subj of examSubjects) {
+        // subject variation: some students are better at maths than languages
+        const subjFactor = subj === "Mathematics" ? 0.9 : subj === "English" ? 1.05 : 1;
+        const ability = studentAbility[s.id] * subjFactor;
+        const m = Math.min(ed.maxMarks, Math.max(Math.round(ed.maxMarks * ability * ed.factor + (Math.random() * 10 - 5)), Math.round(ed.maxMarks * 0.3)));
+        await db.mark.create({
+          data: {
+            examId: exam.id,
+            studentId: s.id,
+            subject: subj,
+            marks: m,
+            maxMarks: ed.maxMarks,
+            grade: (m / ed.maxMarks) >= 0.9 ? "A1" : (m / ed.maxMarks) >= 0.8 ? "A2" : (m / ed.maxMarks) >= 0.7 ? "B1" : (m / ed.maxMarks) >= 0.6 ? "B2" : (m / ed.maxMarks) >= 0.5 ? "C1" : (m / ed.maxMarks) >= 0.4 ? "C2" : "D",
+          },
+        });
+      }
+      // internal hall ticket for SA exams only
+      if (ed.name.startsWith("SA")) {
+        await db.hallTicket.create({
+          data: {
+            examId: exam.id,
+            studentId: s.id,
+            rollNo: `X-A-${s.rollNo}`,
+            printedCount: 1,
+            type: "INTERNAL_SCHOOL",
+          },
+        });
+      }
+    }
   }
+  console.log("  Generated 4 exams (FA1/FA2/SA1/SA2) × 6 subjects for class X-A");
 
   // ─── Homework (class X) ───────────────────────────────────────────
   const hwSeed = [

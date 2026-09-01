@@ -10,9 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Home, BookOpen, CalendarDays, CalendarCheck, ClipboardList, Megaphone, IdCard, User,
-  CheckCircle2, Clock, AlertCircle,
+  CheckCircle2, Clock, AlertCircle, Download,
 } from "lucide-react";
 import type { StudentData } from "@/lib/portal-data";
+import { AttendanceBreakdownChart, AttendancePie, useMonthlyAttendance } from "@/components/portal/attendance-charts";
+import { SubjectPerformanceBar, SubjectRadar, ExamProgressChart, aggregateMarks } from "@/components/portal/performance-charts";
+import { Button } from "@/components/ui/button";
+import { exportCSV, exportPDF, pdfTable } from "@/lib/export";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
@@ -143,51 +147,59 @@ export function StudentPortal({ data }: { data: NonNullable<StudentData> }) {
       </Card>
     ),
     attendance: (
-      <div className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <StatCard label={lang === "te" ? "హాజరు రేటు" : "Attendance Rate"} value={`${attRate}%`} icon={CalendarCheck} tone={attRate > 85 ? "success" : "warning"} />
-          <StatCard label={lang === "te" ? "హాజరైన రోజులు" : "Days Present"} value={present} icon={CheckCircle2} />
-          <StatCard label={lang === "te" ? "గైరుహాజరు" : "Absent"} value={attendance.filter((a) => a.status === "ABSENT").length} icon={AlertCircle} tone="danger" />
-        </div>
-        <Card>
-          <CardHeader><CardTitle className="text-base">{lang === "te" ? "ఇటీవలి రికార్డులు" : "Recent Records"}</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader><TableRow><TableHead>{lang === "te" ? "తేదీ" : "Date"}</TableHead><TableHead>{lang === "te" ? "స్థితి" : "Status"}</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {attendance.slice(0, 14).map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="text-sm">{fmtDate(a.date, "en-IN", { day: "numeric", month: "short" })}</TableCell>
-                    <TableCell><Badge variant={a.status === "PRESENT" ? "default" : a.status === "LATE" ? "secondary" : "destructive"}>{a.status}</Badge></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+      <StudentAttendanceSection attendance={attendance} attRate={attRate} present={present} lang={lang} />
     ),
     results: (
-      <div className="space-y-4">
-        {Object.entries(examMap).map(([exam, marks]) => {
-          const avg = marks.length > 0 ? Math.round(marks.reduce((a, b) => a + (b.marks / b.max) * 100, 0) / marks.length) : 0;
-          return (
-            <Card key={exam}>
-              <CardHeader><CardTitle className="flex items-center justify-between text-base"><span>{exam}</span><Badge variant="secondary">{avg}%</Badge></CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                {marks.map((m) => (
-                  <div key={m.subject} className="flex items-center gap-3">
-                    <span className="w-40 text-sm">{m.subject}</span>
-                    <Progress value={(m.marks / m.max) * 100} className="flex-1" />
-                    <span className="w-20 text-right text-sm font-medium">{m.marks}/{m.max}</span>
-                    {m.grade && <Badge variant="outline" className="w-8 justify-center">{m.grade}</Badge>}
-                  </div>
-                ))}
-              </CardContent>
+      (() => {
+        const allMarks: any[] = [];
+        Object.entries(examMap).forEach(([exam, marks]) => {
+          marks.forEach((m) => allMarks.push({ subject: m.subject, exam, marks: m.marks, maxMarks: m.max }));
+        });
+        const { subjectAvg, examProgress } = aggregateMarks(allMarks);
+        const radarData = subjectAvg.map((s) => ({ subject: s.subject, score: s.avg }));
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => exportCSV("my-marks", allMarks.map((m) => [m.exam, m.subject, m.marks, m.maxMarks, ((m.marks / m.maxMarks) * 100).toFixed(0) + "%"]), ["Exam", "Subject", "Marks", "Max", "%"])}><Download className="mr-1.5 h-3.5 w-3.5" />Export CSV</Button>
+              <Button variant="outline" size="sm" onClick={() => exportPDF("report-card", `Report Card — ${student.name}`, (doc) => {
+                pdfTable(doc, ["Exam", "Subject", "Marks", "Max", "Grade"], allMarks.map((m) => [m.exam, m.subject, String(m.marks), String(m.maxMarks), ""]));
+              })}><Download className="mr-1.5 h-3.5 w-3.5" />Report Card PDF</Button>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader><CardTitle className="text-sm">{lang === "te" ? "విషయ-వారీ పనితీరె" : "Subject Performance"}</CardTitle></CardHeader>
+                <CardContent><SubjectPerformanceBar data={subjectAvg} /></CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-sm">{lang === "te" ? "పనితీరె రాడార్" : "Performance Radar"}</CardTitle></CardHeader>
+                <CardContent><SubjectRadar data={radarData} /></CardContent>
+              </Card>
+            </div>
+            <Card>
+              <CardHeader><CardTitle className="text-sm">{lang === "te" ? "పరీక్ష-వారీ పురోగతి" : "Exam-wise Progress"}</CardTitle></CardHeader>
+              <CardContent><ExamProgressChart data={examProgress} /></CardContent>
             </Card>
-          );
-        })}
-      </div>
+            {Object.entries(examMap).map(([exam, marks]) => {
+              const avg = marks.length > 0 ? Math.round(marks.reduce((a, b) => a + (b.marks / b.max) * 100, 0) / marks.length) : 0;
+              return (
+                <Card key={exam}>
+                  <CardHeader><CardTitle className="flex items-center justify-between text-base"><span>{exam}</span><Badge variant="secondary">{avg}%</Badge></CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {marks.map((m) => (
+                      <div key={m.subject} className="flex items-center gap-3">
+                        <span className="w-40 text-sm">{m.subject}</span>
+                        <Progress value={(m.marks / m.max) * 100} className="flex-1" />
+                        <span className="w-20 text-right text-sm font-medium">{m.marks}/{m.max}</span>
+                        {m.grade && <Badge variant="outline" className="w-8 justify-center">{m.grade}</Badge>}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        );
+      })()
     ),
     announcements: (
       <div className="space-y-2">
@@ -269,5 +281,60 @@ export function StudentPortal({ data }: { data: NonNullable<StudentData> }) {
       title={lang === "te" ? "విద్యార్థి పోర్టల్" : "Student Portal"}
       subtitle={`${student.name} · ${enrolment?.className}-${enrolment?.section}`}
     />
+  );
+}
+
+// ─── Student attendance section with charts ───────────────────────────
+function StudentAttendanceSection({
+  attendance, attRate, present, lang,
+}: {
+  attendance: any[]; attRate: number; present: number; lang: "en" | "te";
+}) {
+  const monthly = useMonthlyAttendance(attendance);
+  const absent = attendance.filter((a) => a.status === "ABSENT").length;
+  const late = attendance.filter((a) => a.status === "LATE").length;
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label={lang === "te" ? "హాజరు రేటు" : "Attendance Rate"} value={`${attRate}%`} icon={CalendarCheck} tone={attRate > 85 ? "success" : "warning"} />
+        <StatCard label={lang === "te" ? "హాజరైన రోజులు" : "Days Present"} value={present} icon={CheckCircle2} />
+        <StatCard label={lang === "te" ? "గైరుహాజరు" : "Absent"} value={absent} icon={AlertCircle} tone="danger" />
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={() => exportCSV("my-attendance", attendance.map((a) => [fmtDate(a.date), a.status]), ["Date", "Status"])}><Download className="mr-1.5 h-3.5 w-3.5" />Export CSV</Button>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{lang === "te" ? "నెలవారీ విభజన" : "Monthly Breakdown"}</CardTitle></CardHeader>
+          <CardContent><AttendanceBreakdownChart data={monthly} /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{lang === "te" ? "మొత్తం పంపిణీ" : "Overall Distribution"}</CardTitle></CardHeader>
+          <CardContent>
+            <AttendancePie data={[
+              { name: "Present", value: present },
+              { name: "Late", value: late },
+              { name: "Absent", value: absent },
+            ]} />
+          </CardContent>
+        </Card>
+      </div>
+      <Card>
+        <CardHeader><CardTitle className="text-base">{lang === "te" ? "ఇటీవలి రికార్డులు" : "Recent Records"}</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow><TableHead>{lang === "te" ? "తేదీ" : "Date"}</TableHead><TableHead>{lang === "te" ? "స్థితి" : "Status"}</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {attendance.slice(0, 14).map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="text-sm">{fmtDate(a.date, "en-IN", { day: "numeric", month: "short" })}</TableCell>
+                  <TableCell><Badge variant={a.status === "PRESENT" ? "default" : a.status === "LATE" ? "secondary" : "destructive"}>{a.status}</Badge></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

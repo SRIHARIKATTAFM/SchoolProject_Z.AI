@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 
 // ─── HM / Admin ────────────────────────────────────────────────────────
 export async function getHmData(schoolId: string) {
-  const [students, staff, idRequests, schemes, notices, auditLogs, attendanceToday, exams, school, handover, onboardings] = await Promise.all([
+  const [students, staff, idRequests, schemes, notices, auditLogs, attendanceToday, exams, school, handover, onboardings, timetables] = await Promise.all([
     db.student.findMany({
       where: { schoolId, status: "ACTIVE" },
       include: { enrolments: { orderBy: { academicYear: "desc" }, take: 1 } },
@@ -26,10 +26,26 @@ export async function getHmData(schoolId: string) {
     db.notice.findMany({ where: { schoolId }, orderBy: { createdAt: "desc" } }),
     db.auditLog.findMany({ where: { schoolId }, include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 20 }),
     db.attendance.findMany({ where: { student: { schoolId } } }),
-    db.exam.findMany({ where: { schoolId }, include: { _count: { select: { marks: true, hallTickets: true } } } }),
+    db.exam.findMany({
+      where: { schoolId },
+      include: {
+        _count: { select: { marks: true, hallTickets: true } },
+        marks: {
+          include: {
+            student: {
+              select: {
+                id: true, name: true, sid: true,
+                enrolments: { take: 1, orderBy: { academicYear: "desc" } },
+              },
+            },
+          },
+        },
+      },
+    }),
     db.school.findUnique({ where: { id: schoolId } }),
     db.hMHandover.findFirst({ where: { schoolId }, include: { authorizedUser: { select: { id: true, name: true, email: true, role: true } }, fromHM: { select: { name: true } } }, orderBy: { createdAt: "desc" } }),
     db.staffOnboarding.findMany({ where: { schoolId }, orderBy: { invitedAt: "desc" } }),
+    db.timetable.findMany({ where: { schoolId }, orderBy: [{ className: "asc" }, { section: "asc" }, { day: "asc" }, { period: "asc" }] }),
   ]);
 
   const todayStart = new Date();
@@ -51,6 +67,7 @@ export async function getHmData(schoolId: string) {
     handover,
     onboardings,
     attendance: attendanceToday,
+    timetables,
     stats: {
       totalStudents: students.length,
       totalStaff: staff.length,
